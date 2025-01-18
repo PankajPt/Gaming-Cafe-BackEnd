@@ -21,6 +21,6 @@ const catelogueSchema = new Schema(
     },{ timestamps: true}
 )
 
-const Catalouge = mongoose.model('Catalouge', catelogueSchema)
+const Catalogue = mongoose.model('Catalogue', catelogueSchema)
 
-export default Catalouge
+export default Catalogue
