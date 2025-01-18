@@ -49,7 +49,7 @@ const verificationLink = asyncHandler(async(email)=> {
     return sentMail
 })
 
-const registerUser = asyncHandler( async (req, res, next) => {
+const registerUser = asyncHandler( async (req, res) => {
     const { username, fullname, email, password } = req.body
     const avatarFilePath = req.file?.avatar[0]?.path
 
