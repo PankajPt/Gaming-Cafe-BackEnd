@@ -1,7 +1,6 @@
 import mongoose, { Schema } from 'mongoose'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
-import { rolePermissions } from '../config/constants.js'
 
 const userSchema = new Schema(
     {
@@ -58,13 +57,6 @@ userSchema.pre('save', async function(){
     this.password = await bcrypt.hash(this.password, 10)
     next()
 })
-
-
-userSchema.methods.assignRole = async function(user, role){
-    user.role = role
-    user.permissions = rolePermissions.role
-    return user
-}
 
 userSchema.methods.isValidPassword = async function (password) {
     return await bcrypt.compare(password, this.password)
