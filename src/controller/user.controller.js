@@ -6,6 +6,7 @@ import uploadOnCloudinary from '../utils/cloudinary.js'
 import User from '../models/user.model.js'
 import jwt from 'jsonwebtoken'
 import sendVerificationLink from '../utils/emailServices.js'
+import { generateVerificationResponse } from './utils/index.template.js'
 
 const  options = {
     httpOnly: true,
@@ -152,14 +153,28 @@ const verifyEmailToken = asyncHandler(async(req, res)=> {
 
     user.isActiveUser = 'active'
     await user.save()
+
     return res
         .status(200)
-        .json(new ApiResponse(200, {}, 'Email verified successfully. Account activation complete.' ))
+        .send(generateVerificationResponse())
 
 })
 
 const updateAvatar = asyncHandler(async()=> {
+    const avatarFilePath = req.files?.avatar[0]?.path
+    if (!avatarFilePath) {
+        throw new apiError(400, 'Avatar file required')
+    }
+
+    const uploadResponse = await uploadOnCloudinary(avatarFilePath, 'image')
+
+    const response = User.findByIdAndUpdate(req.user._id, 
+        {
+            
+        }
+    )
     
+
 })
 
 export {

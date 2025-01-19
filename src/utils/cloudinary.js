@@ -15,6 +15,23 @@ const uploadOnCloudinary = async function(file, type){
     return response
 }
 
+const deleteFromCloudinary = async function(uri, type){
+    try {
+        if (!(uri || type)) return `URI and Type is required.`
+        const [publicId] = uri?.split('/').pop().split('.')
+        if (!publicId) return `Public-Id not found`
+
+        const deleteRes = await cloudinary.uploader.destroy(publicId, {
+           resource_type: type
+        })
+        console.log(`File ${uri} is removed from cloudinary`)
+        return deleteRes
+    } catch (error) {
+        console.log(error)
+    }
+}
+
 export {
-    uploadOnCloudinary
+    uploadOnCloudinary,
+    deleteFromCloudinary
 }
