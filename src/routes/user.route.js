@@ -1,24 +1,15 @@
-import {Router} from 'express'
-import {
-    registerUser,
-    loginUser, 
-    verifyEmailToken,
-    updateAvatar } from '../controller/user.controller.js'
+import { Router } from 'express'
+import { registerUser, loginUser, verifyEmailToken, updateAvatar } from '../controllers/user.controller.js'
 import upload from '../middleware/multer.middleware.js'
 import verifyJWT from '../middleware/auth.middleware.js'
 
 
 const userRouter = Router()
 
-userRouter.route('/register').post(upload.single(
-    {
-        name: 'avatar',
-        maxCount: 1
-    }
-), registerUser)
-
+userRouter.route('/register').post(upload.single('avatar'), registerUser)
 userRouter.route('/login').post(loginUser)
-userRouter.route('/verify-email').post(verifyEmailToken)
+userRouter.route('/verify-email').get(verifyEmailToken)
+// userRouter.route('/events').get()
 
 // secure routes
 userRouter.use(verifyJWT)

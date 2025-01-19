@@ -2,11 +2,11 @@ import fs from 'fs'
 import asyncHandler from '../utils/asyncHandler.js'
 import ApiError from '../utils/apiError.js'
 import ApiResponse from '../utils/apiResponse.js'
-import uploadOnCloudinary from '../utils/cloudinary.js'
+import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js'
 import User from '../models/user.model.js'
 import jwt from 'jsonwebtoken'
 import sendVerificationLink from '../utils/emailServices.js'
-import { generateVerificationResponse } from './utils/index.template.js'
+import { generateVerificationResponse } from '../utils/index.template.js'
 
 const  options = {
     httpOnly: true,
@@ -88,7 +88,7 @@ const registerUser = asyncHandler( async (req, res) => {
     user.mailStatus = await verificationLink(email)
 
     const role = user.role
-    ignoreFields[role].forEach((field) => delete user.field)
+    ignoreFields[role].forEach((field) => delete user[field])
 
     removeTempFile(avatarFilePath)
     // at frontend check user.mailStatus to check status of verification mail sent to user
@@ -165,21 +165,39 @@ const updateAvatar = asyncHandler(async()=> {
     if (!avatarFilePath) {
         throw new apiError(400, 'Avatar file required')
     }
-
-    const uploadResponse = await uploadOnCloudinary(avatarFilePath, 'image')
-
-    const response = User.findByIdAndUpdate(req.user._id, 
-        {
-            
-        }
-    )
     
+    const oldAvatar = req.user.avatar
+    const uploadResponse = await uploadOnCloudinary(avatarFilePath, 'image')
+    if (!uploadResponse) {
+        throw new ApiError(500, `Something went wrong while uploading on cloudinary`)
+    }
 
+    const user = User.findByIdAndUpdate(req.user._id, 
+        {
+            avatar: uploadResponse.url
+        },
+        {
+            new: true
+        }
+    ).select('-password -refreshToken')
+    
+    if (!user){
+        throw new ApiError(500, `Something went wrong while `)
+    }
+
+    const deleteAvatar = await deleteFromCloudinary(oldAvatar, 'image')
+    console.log(deleteAvatar)
+    // need logging if failed to clear from cloudinary with url.
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, user, 'Avatar updated successfully'))
 })
 
 export {
     registerUser,
     loginUser,
     verifyEmailToken,
-    verificationLink
+    verificationLink,
+    updateAvatar
 }

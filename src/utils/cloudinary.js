@@ -9,10 +9,14 @@ cloudinary.config({
 
 
 const uploadOnCloudinary = async function(file, type){
-    if (!file) return null
-    const response = await cloudinary.uploader.upload(file, type)
-    console.log(`File uploaded successfully on cloudinary`)
-    return response
+    try {
+        if (!file) return null
+        const response = await cloudinary.uploader.upload(file, type)
+        console.log(`File uploaded successfully on cloudinary`)
+        return response
+    } catch (error) {
+        return error
+    }
 }
 
 const deleteFromCloudinary = async function(uri, type){
