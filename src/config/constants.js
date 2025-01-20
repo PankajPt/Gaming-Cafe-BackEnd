@@ -3,6 +3,7 @@ const SENDER_NAME = "MadGear Team"
 const REDIRECTIONS = {
     verifyEmail: `https://obscure-space-fortnight-gr6gvg699g5c996g-7557.app.github.dev/api/v1/users/verify-email?token`
 }
+const BREVO_URI = 'https://api.brevo.com/v3/smtp/email'
 const permissions = {
     VIEW_ALL_USERS: 'view_all_users',
     CREATE_USER: 'create_user',
@@ -21,5 +22,6 @@ export {
     permissions,
     rolePermissions,
     SENDER_NAME,
-    REDIRECTIONS
+    REDIRECTIONS,
+    BREVO_URI
 }

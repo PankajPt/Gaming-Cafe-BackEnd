@@ -1,11 +1,10 @@
-import { SENDER_NAME } from '../config/constants.js'
+import { SENDER_NAME, BREVO_URI } from '../config/constants.js'
 import asyncHandler from './asyncHandler.js'
 import axios from 'axios'
 import { generateVerificationEmail } from './index.template.js'
 // npm install axios
 
 const senderMail = process.env.MADGEAR_EMAIL
-const brevoURI = 'https://api.brevo.com/v3/smtp/email'
 const API_KEY = process.env.BREVO_API_KEY
 
 const sendVerificationLink = asyncHandler( async function(receipentEmail, name, verificationLink){
@@ -29,8 +28,12 @@ const sendVerificationLink = asyncHandler( async function(receipentEmail, name, 
         }
     }
     
-    const response = await axios.post(brevoURI, data, config)
-    return response
+    const response = await axios.post(BREVO_URI, data, config)
+    return {
+        status: response.status,
+        statusText: response.statusText
+    }
+    // console response successful but calling party getting undefined 
 })
 
 export default sendVerificationLink

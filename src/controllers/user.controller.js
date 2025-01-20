@@ -50,7 +50,7 @@ const verificationLink = async (emailID) => {
     const randomKey = await user.generateRandomKey()
     const link = `${REDIRECTIONS}=${randomKey}`
     const sentMail = await sendVerificationLink(emailID, user.fullname, link)
-    console.log(sentMail)
+    console.log(`sentMail: ${sentMail}`)
     return sentMail
 }
 
@@ -79,7 +79,7 @@ const registerUser = asyncHandler( async (req, res) => {
     if (avatarFilePath){
         avatar = await uploadOnCloudinary(avatarFilePath, 'image')
     }
-
+    
     const user = await User.create(
         {
             username,
@@ -89,22 +89,18 @@ const registerUser = asyncHandler( async (req, res) => {
             avatar: avatar?.url || "",
         }
     )
-    // console.log(user)
 
     if (!user){
         removeTempFile(avatarFilePath)
         throw new ApiError(500, 'Something went wrong while registering user in DB')
     }
 
-    const mailStatus = await verificationLink(email)
-    console.log(mailStatus)
-    user.mailStatus = mailStatus
-    
+    const mailStatus = await verificationLink(email)    
+    console.log(`console from mail status: ${mailStatus}`)
     const role = user.role
     ignoreFields[role].forEach((field) => delete user[field])
 
     await removeTempFile(avatarFilePath)
-    // console.log(user)
     // at frontend check user.mailStatus to check status of verification mail sent to user
     // add symbol or function to display verified user.
     return res
