@@ -7,7 +7,7 @@ import User from '../models/user.model.js'
 import jwt from 'jsonwebtoken'
 import sendVerificationLink from '../utils/emailServices.js'
 import { generateVerificationResponse } from '../utils/index.template.js'
-
+import { REDIRECTIONS } from '../config/constants.js'
 const  options = {
     httpOnly: true,
     secure: true
@@ -48,8 +48,7 @@ const verificationLink = async (emailID) => {
         throw new ApiError(400, 'User not found')
     }
     const randomKey = await user.generateRandomKey()
-    console.log(randomKey)
-    const link = `https://obscure-space-fortnight-gr6gvg699g5c996g-7557.app.github.dev/api/v1/user/verify-email?token=${randomKey}`
+    const link = `${REDIRECTIONS}=${randomKey}`
     const sentMail = await sendVerificationLink(emailID, user.fullname, link)
     console.log(sentMail)
     return sentMail
@@ -97,9 +96,8 @@ const registerUser = asyncHandler( async (req, res) => {
         throw new ApiError(500, 'Something went wrong while registering user in DB')
     }
 
-    console.log(email)
     const mailStatus = await verificationLink(email)
-    // console.log(mailStatus)
+    console.log(mailStatus)
     user.mailStatus = mailStatus
     
     const role = user.role

@@ -1,5 +1,8 @@
 const DB_NAME = "MADGEAR"
 const SENDER_NAME = "MadGear Team"
+const REDIRECTIONS = {
+    verifyEmail: `https://obscure-space-fortnight-gr6gvg699g5c996g-7557.app.github.dev/api/v1/users/verify-email?token`
+}
 const permissions = {
     VIEW_ALL_USERS: 'view_all_users',
     CREATE_USER: 'create_user',
@@ -7,7 +10,6 @@ const permissions = {
     CREATE_EVENT: 'create_event',
     ADD_NEW_GAME: 'add_new_game'
 }
-
 const rolePermissions = {
     user: [],
     manager: [permissions.VIEW_ALL_USERS, permissions.CREATE_USER, permissions.ADD_NEW_GAME],
@@ -18,5 +20,6 @@ export {
     DB_NAME,
     permissions,
     rolePermissions,
-    SENDER_NAME
+    SENDER_NAME,
+    REDIRECTIONS
 }
