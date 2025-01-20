@@ -42,16 +42,18 @@ const generateAccessAndRefreshToken = async(userID) => {
     return {accessToken, refreshToken}
 }
 
-const verificationLink = asyncHandler(async(emailID)=> {
-    const user = User.findOne({email: emailID})
-    console.log(user)
+const verificationLink = async (emailID) => {
+    const user = await User.findOne({email: emailID})
+    if (!user){
+        throw new ApiError(400, 'User not found')
+    }
     const randomKey = await user.generateRandomKey()
     console.log(randomKey)
     const link = `https://obscure-space-fortnight-gr6gvg699g5c996g-7557.app.github.dev/api/v1/user/verify-email?token=${randomKey}`
-    const sentMail = await sendVerificationLink(email, user.fullname, link)
+    const sentMail = await sendVerificationLink(emailID, user.fullname, link)
     console.log(sentMail)
     return sentMail
-})
+}
 
 const registerUser = asyncHandler( async (req, res) => {
     const { username, fullname, email, password } = req.body
@@ -104,7 +106,7 @@ const registerUser = asyncHandler( async (req, res) => {
     ignoreFields[role].forEach((field) => delete user[field])
 
     await removeTempFile(avatarFilePath)
-    console.log(user)
+    // console.log(user)
     // at frontend check user.mailStatus to check status of verification mail sent to user
     // add symbol or function to display verified user.
     return res
