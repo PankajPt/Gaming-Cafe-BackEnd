@@ -42,19 +42,28 @@ const generateAccessAndRefreshToken = async(userID) => {
     return {accessToken, refreshToken}
 }
 
-const verificationLink = asyncHandler(async(email)=> {
-    const user = User.findOne(email)
+const verificationLink = asyncHandler(async(emailID)=> {
+    const user = User.findOne({email: emailID})
+    console.log(user)
     const randomKey = await user.generateRandomKey()
-    const link = `https://your-domain.com/api/v1/user/verify-email?token=${randomKey}`
+    console.log(randomKey)
+    const link = `https://obscure-space-fortnight-gr6gvg699g5c996g-7557.app.github.dev/api/v1/user/verify-email?token=${randomKey}`
     const sentMail = await sendVerificationLink(email, user.fullname, link)
+    console.log(sentMail)
     return sentMail
 })
 
 const registerUser = asyncHandler( async (req, res) => {
     const { username, fullname, email, password } = req.body
-    const avatarFilePath = req.file?.avatar[0]?.path
+    // console.log(req.file)
+    const avatarFilePath = req.file?.path
+    
+    if (!password){
+        removeTempFile(avatarFilePath)
+        throw new ApiError(400, 'All fileds(username, fullname, email, password) are required. ')
+    }
 
-    if ([username, fullname, email, password].some((field)=> !field) ){
+    if (![username, fullname, email].every((field)=> field?.trim()) ){
         removeTempFile(avatarFilePath)
         throw new ApiError(400, 'All fileds(username, fullname, email, password) are required. ')
     }
@@ -79,18 +88,23 @@ const registerUser = asyncHandler( async (req, res) => {
             avatar: avatar?.url || "",
         }
     )
+    // console.log(user)
 
     if (!user){
         removeTempFile(avatarFilePath)
         throw new ApiError(500, 'Something went wrong while registering user in DB')
     }
 
-    user.mailStatus = await verificationLink(email)
-
+    console.log(email)
+    const mailStatus = await verificationLink(email)
+    // console.log(mailStatus)
+    user.mailStatus = mailStatus
+    
     const role = user.role
     ignoreFields[role].forEach((field) => delete user[field])
 
-    removeTempFile(avatarFilePath)
+    await removeTempFile(avatarFilePath)
+    console.log(user)
     // at frontend check user.mailStatus to check status of verification mail sent to user
     // add symbol or function to display verified user.
     return res
@@ -122,9 +136,8 @@ const loginUser = asyncHandler( async (req, res) => {
     const { accessToken, refreshToken } = generateAccessAndRefreshToken(user._id)
     const role = user.role
     ignoreFields[role].forEach((field)=>{
-        delete user.field
+        delete user[field]
     })
-
     return res
         .status(200)
         .json(new ApiResponse(200, {user, accessToken, refreshToken}, `${user.username} login successfull`))
@@ -161,7 +174,7 @@ const verifyEmailToken = asyncHandler(async(req, res)=> {
 })
 
 const updateAvatar = asyncHandler(async()=> {
-    const avatarFilePath = req.files?.avatar[0]?.path
+    const avatarFilePath = req.file?.path
     if (!avatarFilePath) {
         throw new apiError(400, 'Avatar file required')
     }

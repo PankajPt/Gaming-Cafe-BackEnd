@@ -3,7 +3,10 @@ const asyncHandler = (reqHandler) => {
       try {
         await reqHandler(req, res, next); // await the handler
       } catch (err) {
-        next(err); // Pass errors to the next middleware
+        next(err)
+        // res
+        //   .status(err.code || 500)
+        //   .json({ success: false, message: err.message })
       }
     };
   };
