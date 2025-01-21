@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { registerUser, loginUser, verifyEmailToken, updateAvatar } from '../controllers/user.controller.js'
+import { registerUser, loginUser, logout, verifyEmailToken, updateAvatar } from '../controllers/user.controller.js'
 import upload from '../middleware/multer.middleware.js'
 import verifyJWT from '../middleware/auth.middleware.js'
 
@@ -13,11 +13,7 @@ userRouter.route('/verify-email').get(verifyEmailToken)
 
 // secure routes
 userRouter.use(verifyJWT)
-userRouter.route('/update-avatar').post(upload.single(
-    {
-        name: 'avatar',
-        maxCount: 1
-    }
-), updateAvatar)
+userRouter.route('/update-avatar').post(upload.single('avatar'), updateAvatar)
+userRouter.route('/logout').get(logout)
 
 export default userRouter

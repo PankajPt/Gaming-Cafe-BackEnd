@@ -43,7 +43,6 @@ const generateAccessAndRefreshToken = async(userID) => {
         
         user.refreshToken = refreshToken
         await user.save() //validate before save
-        console.log(user.refreshToken)
         return {accessToken, refreshToken}
     } catch (error) {
         throw new ApiError(500, 'Something went wrong while generationg access and refresh token')
@@ -122,7 +121,9 @@ const loginUser = asyncHandler( async (req, res) => {
     if (!(username || email)){
         throw new ApiError(400, 'Login required username or email-id')
     }
-
+    // sanitize if required username and email
+    // const newUsername = username.toLowerCase().trim()
+    // const newEmail = email.toLowerCase().trim()
     const user = await User.findOne({$or: [{username},{email}]})
     if (!user){
         throw new ApiError(404, 'User not found')
@@ -150,6 +151,16 @@ const loginUser = asyncHandler( async (req, res) => {
         .cookie('refreshToken', refreshToken, options)
         .json(new ApiResponse(200, {plainUser, accessToken, refreshToken}, `${user.username} login successfull`))
 
+})
+
+const logout = asyncHandler(async(req, res) => {
+    const user = req.user
+    await User.updateOne({_id: user._id}, {$unset: {refreshToken: ""}})
+        return res
+            .status(200)
+            .cookie('accessToken', '', options)
+            .cookie('refreshToken', '', options)
+            .json(new ApiResponse(200, {}, `${user.username} logged out`))
 })
 
 // jwt decode and provide user from id
@@ -185,19 +196,20 @@ const verifyEmailToken = asyncHandler(async(req, res)=> {
 
 })
 
-const updateAvatar = asyncHandler(async()=> {
+const updateAvatar = asyncHandler(async(req, res)=> {
     const avatarFilePath = req.file?.path
     if (!avatarFilePath) {
-        throw new apiError(400, 'Avatar file required')
+        throw new ApiError(400, 'Avatar file required')
     }
     
     const oldAvatar = req.user.avatar
     const uploadResponse = await uploadOnCloudinary(avatarFilePath, 'image')
     if (!uploadResponse) {
+        removeTempFile(avatarFilePath)
         throw new ApiError(500, `Something went wrong while uploading on cloudinary`)
     }
 
-    const user = User.findByIdAndUpdate(req.user._id, 
+    const user = await User.findByIdAndUpdate(req.user._id, 
         {
             avatar: uploadResponse.url
         },
@@ -207,11 +219,16 @@ const updateAvatar = asyncHandler(async()=> {
     ).select('-password -refreshToken')
     
     if (!user){
-        throw new ApiError(500, `Something went wrong while `)
+        removeTempFile(avatarFilePath)
+        throw new ApiError(500, `Something went wrong while updating avatar in database`)
     }
 
-    const deleteAvatar = await deleteFromCloudinary(oldAvatar, 'image')
-    console.log(deleteAvatar)
+    await deleteFromCloudinary(oldAvatar, 'image')
+    removeTempFile(avatarFilePath)
+
+    // console.log(deleteAvatar)
+    // File http://res.cloudinary.com/dodnkq5do/image/upload/v1737457068/eu3nihjszqtrwgt92nor.png is removed from cloudinary
+    // { result: 'ok' }
     // need logging if failed to clear from cloudinary with url.
 
     return res
@@ -222,6 +239,7 @@ const updateAvatar = asyncHandler(async()=> {
 export {
     registerUser,
     loginUser,
+    logout,
     verifyEmailToken,
     verificationLink,
     updateAvatar
