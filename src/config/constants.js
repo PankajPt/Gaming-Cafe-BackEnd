@@ -1,5 +1,6 @@
 const DB_NAME = "MADGEAR"
 const SENDER_NAME = "MadGear Team"
+const LOGIN_PAGE = `https://madgear.vercel.app/login`
 const REDIRECTIONS = {
     verifyEmail: `https://obscure-space-fortnight-gr6gvg699g5c996g-7557.app.github.dev/api/v1/users/verify-email?token`
 }
@@ -23,5 +24,6 @@ export {
     rolePermissions,
     SENDER_NAME,
     REDIRECTIONS,
-    BREVO_URI
+    BREVO_URI,
+    LOGIN_PAGE
 }

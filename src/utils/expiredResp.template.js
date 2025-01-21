@@ -1,6 +1,6 @@
 import { LOGIN_PAGE } from '../config/constants.js'
 
-const generateVerificationResponse = () => {
+const tokenExpiredResponse = () => {
     return `<!DOCTYPE html>
                 <html lang="en">
                 <head>
@@ -56,13 +56,13 @@ const generateVerificationResponse = () => {
                 </head>
                 <body>
                     <div class="container">
-                        <h1>Account Verified Successfully</h1>
-                        <p>Please log in using your username and password.</p>
-                        <p class="redirect">Redirecting to the login page in 5 seconds... If not, <a href="${LOGIN_PAGE}">click here</a>.</p>
+                        <h1>Link Expired</h1>
+                        <p>The verification link has expired. Please log in with your username and password to generate a new verification link and activate your account.</p>
+                        <p class="redirect">You will be redirected to the login page in 5 seconds. If the redirection doesn't happen, <a href="${LOGIN_PAGE}">click here</a>.</p>
                     </div>
                 </body>
                 </html>
              `
     }
 
-export default generateVerificationResponse;
+export default tokenExpiredResponse;

@@ -6,7 +6,7 @@ import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js
 import User from '../models/user.model.js'
 import jwt from 'jsonwebtoken'
 import sendVerificationLink from '../utils/emailServices.js'
-import { generateVerificationResponse } from '../utils/index.template.js'
+import { generateVerificationResponse, tokenExpiredResponse } from '../utils/index.template.js'
 import { REDIRECTIONS } from '../config/constants.js'
 
 const  options = {
@@ -152,22 +152,28 @@ const verifyEmailToken = asyncHandler(async(req, res)=> {
     }
 
     // decode _id and verify from jwt 
-    const decodedToken = await jwt.verify(token, process.env.RANDOM_KEY_SECRET)
-    if (!decodedToken) {
-        throw new ApiError(401, 'Invalid Token ID')
+    try {
+        const decodedToken = jwt.verify(token, process.env.RANDOM_KEY_SECRET)
+        if (!decodedToken) {
+            throw new ApiError(401, 'Invalid Token ID')
+        }
+    
+        const user = await User.findById(decodedToken._id)
+        if (!user){
+            throw new ApiError(400, 'User not found')
+        }
+    
+        user.isActiveUser = 'active'
+        await user.save()
+    
+        return res
+            .status(200)
+            .send(generateVerificationResponse())
+    } catch (error) {
+        return res
+            .status(401)
+            .send(tokenExpiredResponse())
     }
-
-    const user = await User.findById(decodedToken._id)
-    if (!user){
-        throw new ApiError(400, 'User not found')
-    }
-
-    user.isActiveUser = 'active'
-    await user.save()
-
-    return res
-        .status(200)
-        .send(generateVerificationResponse())
 
 })
 

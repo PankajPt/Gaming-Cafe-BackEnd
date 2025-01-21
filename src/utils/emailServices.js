@@ -1,5 +1,4 @@
 import { SENDER_NAME, BREVO_URI } from '../config/constants.js'
-import asyncHandler from './asyncHandler.js'
 import axios from 'axios'
 import { generateVerificationEmail } from './index.template.js'
 // npm install axios
