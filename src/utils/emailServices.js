@@ -7,7 +7,7 @@ import { generateVerificationEmail } from './index.template.js'
 const senderMail = process.env.MADGEAR_EMAIL
 const API_KEY = process.env.BREVO_API_KEY
 
-const sendVerificationLink = asyncHandler( async function(receipentEmail, name, verificationLink){
+const sendVerificationLink = async function(receipentEmail, name, verificationLink){
     const data = {
         sender: {
             email: senderMail,
@@ -28,12 +28,15 @@ const sendVerificationLink = asyncHandler( async function(receipentEmail, name, 
         }
     }
     
-    const response = await axios.post(BREVO_URI, data, config)
-    return {
-        status: response.status,
-        statusText: response.statusText
+    try {
+        const response = await axios.post(BREVO_URI, data, config)
+        return {
+            status: response.status,
+            statusText: response.statusText
+        }
+    } catch (error) {
+        return error
     }
-    // console response successful but calling party getting undefined 
-})
+}
 
 export default sendVerificationLink

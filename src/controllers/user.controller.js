@@ -8,6 +8,7 @@ import jwt from 'jsonwebtoken'
 import sendVerificationLink from '../utils/emailServices.js'
 import { generateVerificationResponse } from '../utils/index.template.js'
 import { REDIRECTIONS } from '../config/constants.js'
+
 const  options = {
     httpOnly: true,
     secure: true
@@ -48,9 +49,8 @@ const verificationLink = async (emailID) => {
         throw new ApiError(400, 'User not found')
     }
     const randomKey = await user.generateRandomKey()
-    const link = `${REDIRECTIONS}=${randomKey}`
+    const link = `${REDIRECTIONS.verifyEmail}=${randomKey}`
     const sentMail = await sendVerificationLink(emailID, user.fullname, link)
-    console.log(`sentMail: ${sentMail}`)
     return sentMail
 }
 
@@ -95,17 +95,19 @@ const registerUser = asyncHandler( async (req, res) => {
         throw new ApiError(500, 'Something went wrong while registering user in DB')
     }
 
-    const mailStatus = await verificationLink(email)    
-    console.log(`console from mail status: ${mailStatus}`)
     const role = user.role
     ignoreFields[role].forEach((field) => delete user[field])
+    
+    const plainUser = user.toObject();
+    const mailStatus = await verificationLink(email)
+    plainUser.mailStatus = mailStatus
 
     await removeTempFile(avatarFilePath)
     // at frontend check user.mailStatus to check status of verification mail sent to user
     // add symbol or function to display verified user.
     return res
         .status(201)
-        .json(new ApiResponse(201, user, `User registered successfully`))
+        .json(new ApiResponse(201, plainUser, `User registered successfully`))
 })
 
 const loginUser = asyncHandler( async (req, res) => {
