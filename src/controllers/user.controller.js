@@ -9,16 +9,17 @@ import sendVerificationLink from '../utils/emailServices.js'
 import { generateVerificationResponse, tokenExpiredResponse } from '../utils/index.template.js'
 import { REDIRECTIONS } from '../config/constants.js'
 
+
 const  options = {
     httpOnly: true,
     secure: true
   }
 
-const ignoreFields = {
-    user: ['password', 'refreshToken', 'role', 'permissions', 'randomkey'],
-    manager: ['password', 'refreshToken', 'randomkey'],
-    admin: ['password', 'refreshToken', 'randomkey']
-}
+// const ignoreFields = {
+//     user: ['password', 'refreshToken', 'role', 'permissions'],
+//     manager: ['password', 'refreshToken'],
+//     admin: ['password', 'refreshToken']
+// }
 
 const removeTempFile = async(file) => {
     await file && fs.unlinkSync(file)
@@ -26,21 +27,27 @@ const removeTempFile = async(file) => {
 
 const generateAccessAndRefreshToken = async(userID) => {
 
-    const user = await User.findById({_id: userID})
-    if (!user){
-        throw new ApiError(400, 'User not found')
+    try {
+
+        const user = await User.findById({_id: userID})
+        if (!user){
+            throw new ApiError(400, 'User not found')
+        }
+        
+        const accessToken = await user.generateAccessToken()
+        const refreshToken = await user.generateRefreshToken()
+        
+        if (!(accessToken || refreshToken)){
+            throw new ApiError(500, 'Something went wrong while generating access and refresh token')
+        }
+        
+        user.refreshToken = refreshToken
+        await user.save() //validate before save
+        console.log(user.refreshToken)
+        return {accessToken, refreshToken}
+    } catch (error) {
+        throw new ApiError(500, 'Something went wrong while generationg access and refresh token')
     }
-
-    const accessToken = await user.generateAccessToken()
-    const refreshToken = await user.generateRefreshToken()
-
-    if (!(accessToken || refreshToken)){
-        throw new ApiError(500, 'Something went wrong while generating access and refresh token')
-    }
-
-    user.refreshToken = refreshToken
-    await user.save() //validate before save
-    return {accessToken, refreshToken}
 }
 
 const verificationLink = async (emailID) => {
@@ -95,12 +102,11 @@ const registerUser = asyncHandler( async (req, res) => {
         throw new ApiError(500, 'Something went wrong while registering user in DB')
     }
 
-    const role = user.role
-    ignoreFields[role].forEach((field) => delete user[field])
-    
     const plainUser = user.toObject();
     const mailStatus = await verificationLink(email)
     plainUser.mailStatus = mailStatus
+    delete plainUser.password
+    delete plainUser.refreshToken
 
     await removeTempFile(avatarFilePath)
     // at frontend check user.mailStatus to check status of verification mail sent to user
@@ -113,7 +119,7 @@ const registerUser = asyncHandler( async (req, res) => {
 const loginUser = asyncHandler( async (req, res) => {
     const { username, email, password } = req.body
 
-    if (!(username && email)){
+    if (!(username || email)){
         throw new ApiError(400, 'Login required username or email-id')
     }
 
@@ -127,20 +133,22 @@ const loginUser = asyncHandler( async (req, res) => {
         throw new ApiError(401, 'Password Invalid')
     }
 
+    // for inactive user send verification link
     if ( user.isActiveUser === 'inactive' ){
         verificationLink(user.email)
     }
 
-    const { accessToken, refreshToken } = generateAccessAndRefreshToken(user._id)
-    const role = user.role
-    ignoreFields[role].forEach((field)=>{
-        delete user[field]
-    })
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
+    
+    const plainUser = user.toObject()
+    delete plainUser.refreshToken
+    delete plainUser.password
+
     return res
         .status(200)
-        .json(new ApiResponse(200, {user, accessToken, refreshToken}, `${user.username} login successfull`))
         .cookie('accessToken', accessToken, options)
         .cookie('refreshToken', refreshToken, options)
+        .json(new ApiResponse(200, {plainUser, accessToken, refreshToken}, `${user.username} login successfull`))
 
 })
 
