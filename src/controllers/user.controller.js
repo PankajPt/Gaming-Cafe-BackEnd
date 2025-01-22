@@ -236,6 +236,9 @@ const updateAvatar = asyncHandler(async(req, res)=> {
         .json(new ApiResponse(200, user, 'Avatar updated successfully'))
 })
 
+
+// forgot password
+
 export {
     registerUser,
     loginUser,

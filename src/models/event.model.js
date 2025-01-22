@@ -14,9 +14,10 @@ const eventSchema = new Schema(
             type: String,
             required: true
         },
-        date: {
+        createdAt: {
             type: Date,
-            default: Date.now()
+            default: Date.now(),
+            index: { expires: '1h'}
         },
         prizeMoney: {
             type: Number,
@@ -26,7 +27,7 @@ const eventSchema = new Schema(
             type: Number,
             required: true
         }
-    },{ timestamps: true}
+    }
 )
 
 

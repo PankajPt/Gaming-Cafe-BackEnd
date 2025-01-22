@@ -23,10 +23,12 @@ import userRouter from "./src/routes/user.route.js"
 app.use('/api/v1/users', userRouter)
 
 // admin route
-
+import adminRouter from './src/routes/admin.route.js'
+app.use('/api/v1/admin', adminRouter)
 
 // manager route
-
+import managerRouter from './src/routes/manager.route.js'
+app.use('/api/v1/manager', managerRouter)
 
 // verification route
 

@@ -10,12 +10,22 @@ const permissions = {
     CREATE_USER: 'create_user',
     DELETE_USER: 'delete_user',
     CREATE_EVENT: 'create_event',
-    ADD_NEW_GAME: 'add_new_game'
+    ADD_NEW_GAME: 'add_new_game',
+    DELETE_GAME: 'delete_game',
+    DELETE_EVENT: 'delete_event'
 }
 const rolePermissions = {
     user: [],
     manager: [permissions.VIEW_ALL_USERS, permissions.CREATE_USER, permissions.ADD_NEW_GAME],
-    admin: [permissions.VIEW_ALL_USERS, permissions.CREATE_USER, permissions.DELETE_USER, permissions.CREATE_EVENT, permissions.ADD_NEW_GAME]
+    admin: [
+        permissions.VIEW_ALL_USERS, 
+        permissions.CREATE_USER, 
+        permissions.DELETE_USER, 
+        permissions.CREATE_EVENT, 
+        permissions.ADD_NEW_GAME,
+        permissions.DELETE_GAME,
+        permissions.DELETE_EVENT
+    ]
 }
 
 export { 
