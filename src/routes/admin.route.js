@@ -1,11 +1,12 @@
 import { Router } from 'express';
-import { confirmAdminRole } from '../middleware/auth.middleware.js'
-import { viewUsers, createManager } from '../controllers/admin.controller.js'
+import { verifyJWT } from '../middleware/auth.middleware.js'
+import { viewUsers } from '../controllers/user.controller.js'
+import { createManager } from '../controllers/admin.controller.js'
 
 const adminRouter = Router()
 
 // secure routes
-adminRouter.use(confirmAdminRole)
+adminRouter.use(verifyJWT)
 adminRouter.route('/view-users').get(viewUsers)
 adminRouter.route('/create-manager').post(createManager)
 

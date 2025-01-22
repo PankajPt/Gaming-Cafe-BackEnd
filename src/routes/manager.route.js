@@ -1,10 +1,10 @@
 import { Router } from 'express'
-import { confirmManagerRole } from '../middleware/auth.middleware.js'
-
+import { verifyJWT } from '../middleware/auth.middleware.js'
+import { viewUsers } from '../controllers/user.controller.js'
 const managerRouter = Router()
 
 // secure routes
-managerRouter.use(confirmManagerRole)
-
+managerRouter.use(verifyJWT)
+managerRouter.route('/view-users', viewUsers)
 
 export default managerRouter

@@ -7,7 +7,7 @@ import User from '../models/user.model.js'
 import jwt from 'jsonwebtoken'
 import sendVerificationLink from '../utils/emailServices.js'
 import { generateVerificationResponse, tokenExpiredResponse } from '../utils/index.template.js'
-import { REDIRECTIONS } from '../config/constants.js'
+import { REDIRECTIONS, rolePermissions, permissions } from '../config/constants.js'
 
 
 const  options = {
@@ -134,6 +134,11 @@ const loginUser = asyncHandler( async (req, res) => {
         throw new ApiError(401, 'Password Invalid')
     }
 
+    if ( user.permissions.length < rolePermissions[user.role].length ){
+        user.permissions = rolePermissions[user.role]
+        await user.save()
+    }
+
     // for inactive user send verification link
     if ( user.isActiveUser === 'inactive' ){
         verificationLink(user.email)
@@ -238,6 +243,26 @@ const updateAvatar = asyncHandler(async(req, res)=> {
 
 
 // forgot password
+const updatePassword = asyncHandler(async(req, res)=>{
+
+})
+
+// view users
+const viewUsers = asyncHandler(async(req, res)=>{
+    const requiredPermission = permissions.VIEW_ALL_USERS
+    const userPermissions = req.user.permissions
+    if (!userPermissions.some((permission) => permission === requiredPermission )){ 
+        throw new ApiError(403, 'Access denied: The user does not have permission to view this page.')
+    }
+    const users = await User.find()
+    if (!users){
+        throw new ApiError(404, 'No registered users found');
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, users, 'Users fetch successfully'))
+})
 
 export {
     registerUser,
@@ -245,5 +270,7 @@ export {
     logout,
     verifyEmailToken,
     verificationLink,
-    updateAvatar
+    updateAvatar,
+    updatePassword,
+    viewUsers
 }

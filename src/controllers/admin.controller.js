@@ -3,24 +3,23 @@ import ApiError from "../utils/apiError.js";
 import ApiResponse from "../utils/apiResponse.js";
 import Event from "../models/event.model.js"
 import User from "../models/user.model.js";
-import {rolePermissions} from '../config/constants.js'
+import {rolePermissions, permissions} from '../config/constants.js'
 
-// view users
-const viewUsers = asyncHandler(async(req, res)=>{
-    const users = await User.find()
-    if (!users){
-        throw new ApiError(404, 'No registered users found');
-    }
-
-    return res
-        .status(200)
-        .json(new ApiResponse(200, users, 'Users fetch successfully'))
-})
 
 // create new manager
+// drop down menu to select only manager or user
+// need to handle at frontend admin role change option disabled.
+// if user then option to change role to manager and vice versa
 const createManager = asyncHandler(async(req, res)=> {
-    const { username } = req.body
-    if(!username){
+    const requiredPermission = permissions.CHANGE_USER_PERMISSION
+    const userPermissions = req.user.permissions
+
+    if (!userPermissions.some((permission) => permission === requiredPermission)){
+        throw new ApiError(403, 'Access denied: The user does not have permission to view this page.')
+    }
+
+    const { username, newRole } = req.body
+    if(!(username && newRole)){
         throw new ApiError(400, 'Username cannot be blank');
     }
     const modifiedUsername = username.toLowerCase().trim()
@@ -30,16 +29,14 @@ const createManager = asyncHandler(async(req, res)=> {
         },
         {
             $set: {
-                role: 'manager', 
-                permissions: rolePermissions.manager
+                role: newRole, 
+                permissions: rolePermissions[newRole]
             }
         },
         {
             new: true
         }
     ).select('-password -refreshToken')
-
-    // set permissions to manager
 
     if(!user){
         throw new ApiError(404, 'User not found')
@@ -67,4 +64,4 @@ const createManager = asyncHandler(async(req, res)=> {
 
 // create plans
 
-export { viewUsers, createManager }
+export { createManager }
