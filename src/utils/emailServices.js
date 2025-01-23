@@ -1,12 +1,12 @@
 import { SENDER_NAME, BREVO_URI } from '../config/constants.js'
 import axios from 'axios'
-import { generateVerificationEmail } from './index.template.js'
+import { generateVerificationEmail } from '../templates/index.template.js'
 // npm install axios
 
 const senderMail = process.env.MADGEAR_EMAIL
 const API_KEY = process.env.BREVO_API_KEY
 
-const sendVerificationLink = async function(receipentEmail, name, verificationLink){
+const sendVerificationLink = async function(receipentEmail, name, verificationLink, title, body){
     const data = {
         sender: {
             email: senderMail,
@@ -17,7 +17,7 @@ const sendVerificationLink = async function(receipentEmail, name, verificationLi
             name
         }],
         subject: `Account Verification`,
-        htmlContent: generateVerificationEmail(name, verificationLink)
+        htmlContent: generateVerificationEmail(name, title, body, verificationLink)
     }
 
     const config = {

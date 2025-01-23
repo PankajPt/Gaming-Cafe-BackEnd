@@ -1,4 +1,6 @@
-const generateVerificationEmail = (name, verificationLink) => {
+const generateVerificationEmail = (name, title, body, verificationLink) => {
+    // Verify Account-title
+    // body-Click on the button below to verify your account:
     return `
             <html>
                 <head>
@@ -49,9 +51,10 @@ const generateVerificationEmail = (name, verificationLink) => {
                 <body>
                     <div class="container">
                         <h2>Hello ${name},</h2>
-                        <p>Click on the button below to verify your account:</p>
-                        <a href="${verificationLink}">Verify Account</a>
+                        <p>${body}</p>
+                        <a href="${verificationLink}">${title}</a>
                         <div class="footer">
+                            <p>This link will expires in 1hr.</p>
                             <p>If you did not request this, please ignore this email.</p>
                         </div>
                     </div>

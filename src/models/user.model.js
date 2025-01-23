@@ -60,7 +60,9 @@ userSchema.pre('save', async function(next){
 
 userSchema.methods.isValidPassword = async function (password) {
     return await bcrypt.compare(password, this.password)
+    // returns true and false 
 }
+
 
 userSchema.methods.generateRandomKey = async function(){
     return jwt.sign({_id: this._id}, process.env.RANDOM_KEY_SECRET, {expiresIn: process.env.RAMDOM_KEY_EXPIRY})

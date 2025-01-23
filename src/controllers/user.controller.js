@@ -6,7 +6,7 @@ import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js
 import User from '../models/user.model.js'
 import jwt from 'jsonwebtoken'
 import sendVerificationLink from '../utils/emailServices.js'
-import { generateVerificationResponse, tokenExpiredResponse } from '../utils/index.template.js'
+import { generateVerificationResponse, tokenExpiredResponse } from '../templates/index.template.js'
 import { REDIRECTIONS, rolePermissions, permissions } from '../config/constants.js'
 
 
@@ -49,14 +49,14 @@ const generateAccessAndRefreshToken = async(userID) => {
     }
 }
 
-const verificationLink = async (emailID) => {
+const verificationLink = async (emailID, title, body) => {
     const user = await User.findOne({email: emailID})
     if (!user){
         throw new ApiError(400, 'User not found')
     }
     const randomKey = await user.generateRandomKey()
     const link = `${REDIRECTIONS.verifyEmail}=${randomKey}`
-    const sentMail = await sendVerificationLink(emailID, user.fullname, link)
+    const sentMail = await sendVerificationLink(emailID, user.fullname, link, title, body)
     return sentMail
 }
 
@@ -102,7 +102,10 @@ const registerUser = asyncHandler( async (req, res) => {
     }
 
     const plainUser = user.toObject();
-    const mailStatus = await verificationLink(email)
+    const title = `Verify Account`
+    const body = `body-Click on the button below to verify your account:`
+
+    const mailStatus = await verificationLink(email, title, body)
     plainUser.mailStatus = mailStatus
     delete plainUser.password
     delete plainUser.refreshToken
@@ -241,8 +244,43 @@ const updateAvatar = asyncHandler(async(req, res)=> {
         .json(new ApiResponse(200, user, 'Avatar updated successfully'))
 })
 
+// forgot password through login-jwt-verify
+const updatePasswordWithJWT = asyncHandler(async(req, res)=>{
+    const { current, newPassword, confirm } = req.body
+    if (!(current && newPassword && confirm)){
+        throw new ApiError(400, 'All fields(current password, new password, confirm password) are required.')
+    }
 
-// forgot password
+    if ( newPassword !== confirm ){
+        throw new ApiError(400, 'New and cofirm password not match')
+    }
+    const user = await User.findById(req.user._id)
+    const validUser = await user.isValidPassword(current)
+    if(!validUser){
+        throw new ApiError(401, 'Current password not match.')
+    }
+
+    user.password = newPassword
+    const savePassword = await user.save()
+
+    if(!savePassword){
+        throw new ApiError(500, 'Something went wrong while updatin password in DB.')
+    }
+
+    const { accessToken, refreshToken } = generateAccessAndRefreshToken(user._id)
+    const plainUser = user.toObject()
+    delete plainUser.password
+    delete plainUser.refreshToken
+
+    return res
+        .status(200)
+        .cookie('accessToken', accessToken, options)
+        .cookie('refreshToken', refreshToken, options)
+        .json(200, plainUser, 'Password updated successfully' )
+
+})
+
+// forgot password through verification link
 const updatePassword = asyncHandler(async(req, res)=>{
 
 })
@@ -272,5 +310,6 @@ export {
     verificationLink,
     updateAvatar,
     updatePassword,
-    viewUsers
+    viewUsers,
+    updatePasswordWithJWT
 }
