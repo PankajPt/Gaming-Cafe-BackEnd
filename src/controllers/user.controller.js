@@ -107,7 +107,7 @@ const registerUser = asyncHandler( async (req, res) => {
     delete plainUser.password
     delete plainUser.refreshToken
 
-    await removeTempFile(avatarFilePath)
+    // await removeTempFile(avatarFilePath)
     // at frontend check user.mailStatus to check status of verification mail sent to user
     // add symbol or function to display verified user.
     return res
@@ -228,9 +228,9 @@ const updateAvatar = asyncHandler(async(req, res)=> {
         throw new ApiError(500, `Something went wrong while updating avatar in database`)
     }
 
-    await deleteFromCloudinary(oldAvatar, 'image')
-    removeTempFile(avatarFilePath)
+    await deleteFromCloudinary(oldAvatar, "",  'image')
 
+    // removeTempFile(avatarFilePath)
     // console.log(deleteAvatar)
     // File http://res.cloudinary.com/dodnkq5do/image/upload/v1737457068/eu3nihjszqtrwgt92nor.png is removed from cloudinary
     // { result: 'ok' }

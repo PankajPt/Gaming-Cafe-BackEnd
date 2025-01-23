@@ -7,8 +7,14 @@ const eventSchema = new Schema(
             required: true
         },
         thumbnail: {
-            type: String,
-            required: true
+            url: {
+                type: String,
+                required: true
+            },
+            publicId: {
+                type: String,
+                required: true
+            }
         },
         description: {
             type: String,
@@ -17,7 +23,7 @@ const eventSchema = new Schema(
         createdAt: {
             type: Date,
             default: Date.now(),
-            index: { expires: '1h'}
+            index: { expires: '1d'}
         },
         prizeMoney: {
             type: Number,

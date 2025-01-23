@@ -1,14 +1,20 @@
 import mongoose, { Schema } from "mongoose";
 
-const catelogueSchema = new Schema(
+const catalogueSchema = new Schema(
     {
         title: {
             type: String,
             required: true
         },
         thumbnail: {
-            type: String,
-            required: true
+            url: {
+                type: String,
+                required: true
+            },
+            publicId: {
+                type: String,
+                required: true
+            }
         },
         description: {
             type: String,
@@ -21,6 +27,6 @@ const catelogueSchema = new Schema(
     },{ timestamps: true}
 )
 
-const Catalogue = mongoose.model('Catalogue', catelogueSchema)
+const Catalogue = mongoose.model('Catalogue', catalogueSchema)
 
 export default Catalogue

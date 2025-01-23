@@ -7,6 +7,9 @@ cloudinary.config({
     api_secret: process.env.CLOUD_API_SECRET
 })
 
+const removeTempFile = async(file) => {
+    await file && fs.unlinkSync(file)
+}
 
 const uploadOnCloudinary = async function(file, type){
     try {
@@ -14,24 +17,29 @@ const uploadOnCloudinary = async function(file, type){
         const response = await cloudinary.uploader.upload(file, {
             resource_type: type
         })
+        await removeTempFile(file)
         console.log(`File uploaded successfully on cloudinary`)
+        
         return response
     } catch (error) {
+        await removeTempFile(file)
         fs.unlinkSync(file)
         return error
     }
 }
 
-const deleteFromCloudinary = async function(uri, type){
+const deleteFromCloudinary = async function(uri, publicId, type){
     try {
-        if (!(uri || type)) return `URI and Type is required.`
-        const [publicId] = uri?.split('/').pop().split('.')
-        if (!publicId) return `Public-Id not found`
-
+        if (!((uri || publicId) && type)) return `URI and Type is required.`
+        if (!publicId){
+            const [publicId] = uri?.split('/').pop().split('.')
+            if (!publicId) return `Public-Id not found`
+        }
+        
         const deleteRes = await cloudinary.uploader.destroy(publicId, {
            resource_type: type
         })
-        console.log(`File ${uri} is removed from cloudinary`)
+        console.log(`File ${publicId} is removed from cloudinary`)
         return deleteRes
     } catch (error) {
         console.log(error)
