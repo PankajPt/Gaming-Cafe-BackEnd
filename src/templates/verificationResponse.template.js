@@ -65,4 +65,6 @@ const generateVerificationResponse = () => {
              `
     }
 
+    // name success response
+    // title and body and redirect to login page
 export default generateVerificationResponse;

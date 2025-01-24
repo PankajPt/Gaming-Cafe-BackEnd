@@ -2,7 +2,7 @@ const DB_NAME = "MADGEAR"
 const SENDER_NAME = "MadGear Team"
 const LOGIN_PAGE = `https://madgear.vercel.app/login`
 const REDIRECTIONS = {
-    verifyEmail: `https://obscure-space-fortnight-gr6gvg699g5c996g-7557.app.github.dev/api/v1/users/verify-email?token`
+    BACKEND_BASE_URL: `https://obscure-space-fortnight-gr6gvg699g5c996g-7557.app.github.dev/api/v1`
 }
 const BREVO_URI = 'https://api.brevo.com/v3/smtp/email'
 const permissions = {

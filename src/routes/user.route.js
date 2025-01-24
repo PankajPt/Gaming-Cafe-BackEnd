@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { registerUser, loginUser, logout, verifyEmailToken, updateAvatar } from '../controllers/user.controller.js'
+import { registerUser, loginUser, logout, userActivation, updateAvatar } from '../controllers/user.controller.js'
 import upload from '../middleware/multer.middleware.js'
 import { verifyJWT } from '../middleware/auth.middleware.js'
 
@@ -8,7 +8,7 @@ const userRouter = Router()
 
 userRouter.route('/register').post(upload.single('avatar'), registerUser)
 userRouter.route('/login').post(loginUser)
-userRouter.route('/verify-email').get(verifyEmailToken)
+userRouter.route('/verify-email').get(userActivation)
 // userRouter.route('/events').get()
 
 // secure routes

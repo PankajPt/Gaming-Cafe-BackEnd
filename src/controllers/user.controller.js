@@ -2,24 +2,19 @@ import fs from 'fs'
 import asyncHandler from '../utils/asyncHandler.js'
 import ApiError from '../utils/apiError.js'
 import ApiResponse from '../utils/apiResponse.js'
+import ApiEmail from '../utils/apiEmail.js'
 import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js'
 import User from '../models/user.model.js'
 import jwt from 'jsonwebtoken'
-import sendVerificationLink from '../utils/emailServices.js'
-import { generateVerificationResponse, tokenExpiredResponse } from '../templates/index.template.js'
-import { REDIRECTIONS, rolePermissions, permissions } from '../config/constants.js'
+import { sendVerificationLink, verifyEmailToken } from '../utils/emailServices.js'
+import { generateVerificationResponse, tokenExpiredResponse, submitPasswordForm } from '../templates/index.template.js'
+import { rolePermissions, permissions } from '../config/constants.js'
 
 
 const  options = {
     httpOnly: true,
     secure: true
   }
-
-// const ignoreFields = {
-//     user: ['password', 'refreshToken', 'role', 'permissions'],
-//     manager: ['password', 'refreshToken'],
-//     admin: ['password', 'refreshToken']
-// }
 
 const removeTempFile = async(file) => {
     await file && fs.unlinkSync(file)
@@ -49,15 +44,8 @@ const generateAccessAndRefreshToken = async(userID) => {
     }
 }
 
-const verificationLink = async (emailID, title, body) => {
-    const user = await User.findOne({email: emailID})
-    if (!user){
-        throw new ApiError(400, 'User not found')
-    }
-    const randomKey = await user.generateRandomKey()
-    const link = `${REDIRECTIONS.verifyEmail}=${randomKey}`
-    const sentMail = await sendVerificationLink(emailID, user.fullname, link, title, body)
-    return sentMail
+const generateRandomKey = (userId)=>{
+    return jwt.sign({_id: userId}, process.env.RANDOM_KEY_SECRET, {expiresIn: process.env.RAMDOM_KEY_EXPIRY})
 }
 
 const registerUser = asyncHandler( async (req, res) => {
@@ -101,11 +89,19 @@ const registerUser = asyncHandler( async (req, res) => {
         throw new ApiError(500, 'Something went wrong while registering user in DB')
     }
 
+    const mailStatus = await sendVerificationLink(new ApiEmail(
+        email,
+        fullname,
+        `Verify Account`,
+        `Click on the button below to verify your account:`,
+        `/users/verify-email`,
+        generateRandomKey(user._id)
+    ))
+    
+    if(!mailStatus){
+        console.log('Something went wrong while sending mail')
+    }
     const plainUser = user.toObject();
-    const title = `Verify Account`
-    const body = `body-Click on the button below to verify your account:`
-
-    const mailStatus = await verificationLink(email, title, body)
     plainUser.mailStatus = mailStatus
     delete plainUser.password
     delete plainUser.refreshToken
@@ -143,9 +139,9 @@ const loginUser = asyncHandler( async (req, res) => {
     }
 
     // for inactive user send verification link
-    if ( user.isActiveUser === 'inactive' ){
-        verificationLink(user.email)
-    }
+    // if ( user.isActiveUser === 'inactive' ){
+    //     verificationLink(user.email)
+    // }
 
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
     
@@ -172,36 +168,32 @@ const logout = asyncHandler(async(req, res) => {
 })
 
 // jwt decode and provide user from id
-const verifyEmailToken = asyncHandler(async(req, res)=> {
+const userActivation = asyncHandler(async(req, res)=> {
     const { token } = req.query
     if (!token) {
         throw new ApiError(404, 'Invalid Authentication Token')
     }
 
     // decode _id and verify from jwt 
-    try {
-        const decodedToken = jwt.verify(token, process.env.RANDOM_KEY_SECRET)
-        if (!decodedToken) {
-            throw new ApiError(401, 'Invalid Token ID')
-        }
-    
-        const user = await User.findById(decodedToken._id)
-        if (!user){
-            throw new ApiError(400, 'User not found')
-        }
-    
-        user.isActiveUser = 'active'
-        await user.save()
-    
+    const decodedToken = await verifyEmailToken(token)
+    if (!decodedToken){
         return res
-            .status(200)
-            .send(generateVerificationResponse())
-    } catch (error) {
+        .status(401)
+        .send(tokenExpiredResponse())
+    }
+// need to modify tokenExpiryResponse template to generic -- 
+    const user = await User.findById(decodedToken._id)
+    if (!user){
         return res
-            .status(401)
-            .send(tokenExpiredResponse())
+        .status(400)
+        .send(tokenExpiredResponse())
     }
 
+    user.isActiveUser = 'active'
+    await user.save()
+    return res
+            .status(200)
+            .send(generateVerificationResponse())
 })
 
 const updateAvatar = asyncHandler(async(req, res)=> {
@@ -257,7 +249,7 @@ const updatePasswordWithJWT = asyncHandler(async(req, res)=>{
     const user = await User.findById(req.user._id)
     const validUser = await user.isValidPassword(current)
     if(!validUser){
-        throw new ApiError(401, 'Current password not match.')
+        throw new ApiError(401, 'Invalid current password')
     }
 
     user.password = newPassword
@@ -281,8 +273,89 @@ const updatePasswordWithJWT = asyncHandler(async(req, res)=>{
 })
 
 // forgot password through verification link
-const updatePassword = asyncHandler(async(req, res)=>{
+const sendPasswordResetOnMail = asyncHandler(async(req, res)=>{
+    const { email } = req.body
+    if(!email){
+        throw new ApiError(400, 'Email-ID is required to reset password.')
+    }
 
+    const user = await User.findOne({email: email})
+    if(!user){
+        throw new ApiError(404, 'User is not registerd.')
+    }
+    const sentMail = await sendVerificationLink(new ApiEmail(
+        email, 
+        user.fullname, 
+        'Reset Password', 
+        'Click on the button below to reset password for your account:',
+        '/users/reset-password',
+        generateRandomKey(user._id))
+    )
+
+    if(!sentMail){
+        throw new ApiError(500, 'Something went wrong while sending reset email. Please try again after some time.')
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, `Password reset link send to ${email}, please check your inbox.`))
+})
+
+const sendPasswordSubmitForm = asyncHandler(async(req, res)=>{
+    const { token } = req.query
+    if(!token){
+        // need to send html page to user
+        throw new ApiError(400, 'Token cannot be blank')
+    }
+
+    const decodedToken = verifyEmailToken(token)
+    if(!decodedToken){
+        // return link expired message.
+        throw new ApiError(401, 'Token Expired')
+    }
+
+    const shortLiveKey = generateRandomKey(decodedToken._id)
+    return res
+        .status(202)
+        .cookie('shortLiveKey', shortLiveKey, {httpOnly: true, secure: true, maxAge: 600000})
+        .send(submitPasswordForm())
+})
+
+const updatePasswordWithEmail = asyncHandler(async(req, res)=>{
+    const { shortLiveKey } = req.cookies
+    const { newPassword, confirmPassword } = req.body
+
+    if(!(newPassword && confirmPassword)){
+        throw new ApiError(400, 'All fields(newPassword, confirmPassword) are required.')
+    }
+
+    if(!shortLiveKey){
+        return res
+            .status(400)
+            .send(tokenExpiredResponse())
+    }
+
+    const decodedToken = verifyEmailToken(shortLiveKey)
+    if (!decodedToken){
+        return res
+            .status(403)
+            .send(tokenExpiredResponse())
+    }
+
+    const user = await User.findById(decodedToken._id)
+    if(!user){
+        throw new ApiError(404, 'User not found')
+    }
+    user.password = newPassword
+    const isSaved = await user.save()
+    if (!isSaved){
+        throw new ApiError(500, 'Something went wrong while updating password. Please try again after some time.')
+    }
+
+    return res
+        .status(200)
+        .cookie('shortLiveKey', "", options)
+        .send(generateVerificationResponse())
 })
 
 // view users
@@ -302,14 +375,19 @@ const viewUsers = asyncHandler(async(req, res)=>{
         .json(new ApiResponse(200, users, 'Users fetch successfully'))
 })
 
+
+
 export {
     registerUser,
     loginUser,
     logout,
-    verifyEmailToken,
+    userActivation,
     verificationLink,
     updateAvatar,
     updatePassword,
     viewUsers,
-    updatePasswordWithJWT
+    updatePasswordWithJWT,
+    sendPasswordResetOnMail,
+    sendPasswordSubmitForm,
+    updatePasswordWithEmail
 }

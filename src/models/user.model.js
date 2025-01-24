@@ -64,9 +64,9 @@ userSchema.methods.isValidPassword = async function (password) {
 }
 
 
-userSchema.methods.generateRandomKey = async function(){
-    return jwt.sign({_id: this._id}, process.env.RANDOM_KEY_SECRET, {expiresIn: process.env.RAMDOM_KEY_EXPIRY})
-}
+// userSchema.methods.generateRandomKey = async function(){
+//     return jwt.sign({_id: this._id}, process.env.RANDOM_KEY_SECRET, {expiresIn: process.env.RAMDOM_KEY_EXPIRY})
+// }
 
 
 userSchema.methods.generateAccessToken = async function(){
