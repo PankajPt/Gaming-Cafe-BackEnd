@@ -6,20 +6,26 @@ import User from "../models/user.model.js";
 import Catalogue from '../models/catalogue.model.js'
 import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js'
 import {rolePermissions, permissions} from '../config/constants.js'
-
-
+import fs from 'fs'
 // create new manager
 // drop down menu to select only manager or user
 // need to handle at frontend admin role change option disabled.
 // if user then option to change role to manager and vice versa
-const createManager = asyncHandler(async(req, res)=> {
-    const requiredPermission = permissions.CHANGE_USER_PERMISSION
-    const userPermissions = req.user.permissions
 
+const verifyUserPermissions = (requiredPermission, userPermissions) => {
     if (!userPermissions.some((permission) => permission === requiredPermission)){
         throw new ApiError(403, 'Access denied: The user does not have permission to view this page.')
     }
+    return true
+}
 
+const removeTempFile = async(file) => {
+    await file && fs.unlinkSync(file)
+}
+
+const createManager = asyncHandler(async(req, res)=> {
+    const requiredPermission = permissions.CHANGE_USER_PERMISSION
+    verifyUserPermissions(requiredPermission, req.user.permissions)
     const { username, newRole } = req.body
     if(!(username && newRole)){
         throw new ApiError(400, 'Username cannot be blank');
@@ -53,14 +59,18 @@ const createManager = asyncHandler(async(req, res)=> {
 const addNewGame = asyncHandler(async(req, res)=>{
     const { title, description } = req.body
     const imageFilePath = req.file?.path
+    const requiredPermission = permissions.ADD_NEW_GAME
+    verifyUserPermissions(requiredPermission, req.user.permissions)
 
     if (!(title && description && imageFilePath)){
+        await removeTempFile(imageFilePath)
         throw new ApiError(400, 'All fields(title, description, image) are required.')
     }
 
     const cloudiResponse = await uploadOnCloudinary(imageFilePath, 'image')
 
     if(!cloudiResponse){
+        await removeTempFile(imageFilePath)
         throw new ApiError(500, "Something went wrong while uploading game image on cloudinary.")
     }
 
@@ -71,11 +81,13 @@ const addNewGame = asyncHandler(async(req, res)=>{
             thumbnail: {
                 url: cloudiResponse?.url,
                 publicId: cloudiResponse?.public_id
-            }
+            },
+            owner: req.user._id
         }
     )
 
     if(!game){
+        await deleteFromCloudinary(cloudiResponse.url, cloudiResponse.public_id, 'image')
         throw new ApiError(500, 'Something went wrong while creating new entry in DB.')
     }
 
@@ -87,7 +99,9 @@ const addNewGame = asyncHandler(async(req, res)=>{
 // delete games
 // need to change user model user controller and delete from cloudinary
 const deleteGame = asyncHandler(async(req, res)=>{
-    const gameId = req.body
+    const { gameId } = req.body
+    const requiredPermission = permissions.DELETE_GAME
+    verifyUserPermissions(requiredPermission, req.user.permissions)
     if(!gameId){
         throw new ApiError(400, 'Game id is required to perform this operation')
     }
@@ -110,6 +124,8 @@ const deleteGame = asyncHandler(async(req, res)=>{
 const createEvent = asyncHandler(async(req, res)=>{
     const { title, description, date, prizeMoney, entryFee } = req.body
     const imageFilePath = req.file?.path
+    const requiredPermission = permissions.CREATE_EVENT
+    verifyUserPermissions(requiredPermission, req.user.permissions)
 
     if (!(title && description && imageFilePath && prizeMoney && entryFee)){
         await removeTempFile(imageFilePath)
@@ -132,6 +148,7 @@ const createEvent = asyncHandler(async(req, res)=>{
     )
 
     if(!newEvent){
+        await deleteFromCloudinary(cloudiResponse.url, cloudiResponse.public_id, 'image')
         throw new ApiError(500, 'Enable to create event at the moment. something went wrong while updating DB.')
     }
 
@@ -144,7 +161,10 @@ const createEvent = asyncHandler(async(req, res)=>{
 
 // delete event
 const deleteEvent = asyncHandler(async(req, res)=>{
-    const eventId = req.body
+    const { eventId } = req.body
+    const requiredPermission = permissions.DELETE_EVENT
+    verifyUserPermissions(requiredPermission, req.user.permissions)
+
     if(!eventId){
         throw new ApiError(400, 'Event id required to perform this operation.')
     }
@@ -152,11 +172,12 @@ const deleteEvent = asyncHandler(async(req, res)=>{
     if(!destroy){
         throw new ApiError(404, 'Event not found.')
     }
-    
-    await deleteFromCloudinary(destroy.url, destroy.publicId, 'image')
+
+    await deleteFromCloudinary(destroy.thumbnail.url, destroy.thumbnail.publicId, 'image')
+    // if false receive as response log the event 
     return res
         .status(200)
-        .json(200, {}, 'Event deleted successfully.')
+        .json(new ApiResponse(200, {}, 'Event deleted successfully.'))
 
 })
 // arrange slots

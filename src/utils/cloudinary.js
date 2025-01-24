@@ -30,12 +30,18 @@ const uploadOnCloudinary = async function(file, type){
 
 const deleteFromCloudinary = async function(uri, publicId, type){
     try {
-        if (!((uri || publicId) && type)) return `URI and Type is required.`
-        if (!publicId){
-            const [publicId] = uri?.split('/').pop().split('.')
-            if (!publicId) return `Public-Id not found`
+        if (!((uri || publicId) && type)) {
+            console.log(`URI and Type is required.`)
+            return false
         }
-        
+        if (!publicId){
+            [publicId] = uri?.split('/').pop().split('.')
+            if (!publicId) {
+                console.log(`Public-Id not found`)
+                return false
+            }
+        }
+
         const deleteRes = await cloudinary.uploader.destroy(publicId, {
            resource_type: type
         })
