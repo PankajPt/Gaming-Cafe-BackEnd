@@ -47,6 +47,40 @@ const generateAccessAndRefreshToken = async(userID) => {
 const generateRandomKey = (userId)=>{
     return jwt.sign({_id: userId}, process.env.RANDOM_KEY_SECRET, {expiresIn: process.env.RAMDOM_KEY_EXPIRY})
 }
+// function to create send mail
+const sendMailToVerify = async(user) => {
+    if (!user){
+        throw new ApiError(400, 'User not specified')
+    }
+
+    try {
+        const sendMail = await sendVerificationLink(new ApiEmail(
+            user.email,
+            user.fullname,
+            `Verify Account`,
+            `Click on the button below to verify your account:`,
+            `/users/verify-email`,
+            generateRandomKey(user._id)
+        ))
+        
+        return sendMail
+    } catch (error) {
+        console.log(error)
+        return false
+    }
+}
+// api to send verification mail
+const sendVerificationEmail = asyncHandler(async(req, res)=>{
+    const user = req.user
+    const mailStatus = await sendMailToVerify(user)
+    if(!mailStatus){
+        console.log('Something went wrong while sending mail')
+    }
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, 'Verification link send to registered mail-id.'))
+})
+
 
 const registerUser = asyncHandler( async (req, res) => {
     const { username, fullname, email, password } = req.body
@@ -89,14 +123,15 @@ const registerUser = asyncHandler( async (req, res) => {
         throw new ApiError(500, 'Something went wrong while registering user in DB')
     }
 
-    const mailStatus = await sendVerificationLink(new ApiEmail(
-        email,
-        fullname,
-        `Verify Account`,
-        `Click on the button below to verify your account:`,
-        `/users/verify-email`,
-        generateRandomKey(user._id)
-    ))
+    const mailStatus = await sendMailToVerify(user)
+    // sendVerificationLink(new ApiEmail(
+    //     email,
+    //     fullname,
+    //     `Verify Account`,
+    //     `Click on the button below to verify your account:`,
+    //     `/users/verify-email`,
+    //     generateRandomKey(user._id)
+    // ))
     
     if(!mailStatus){
         console.log('Something went wrong while sending mail')
@@ -387,5 +422,6 @@ export {
     updatePasswordWithJWT,
     sendPasswordResetOnMail,
     sendPasswordSubmitForm,
-    updatePasswordWithEmail
+    updatePasswordWithEmail,
+    sendVerificationEmail
 }

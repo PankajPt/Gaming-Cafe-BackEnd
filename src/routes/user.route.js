@@ -8,7 +8,8 @@ import {
     updatePasswordWithJWT,
     sendPasswordResetOnMail,
     sendPasswordSubmitForm,
-    updatePasswordWithEmail } from '../controllers/user.controller.js'
+    updatePasswordWithEmail,
+    sendVerificationEmail } from '../controllers/user.controller.js'
 import { uploadUserFile } from '../middleware/multer.middleware.js'
 import { verifyJWT } from '../middleware/auth.middleware.js'
 
@@ -28,5 +29,6 @@ userRouter.use(verifyJWT)
 userRouter.route('/update-avatar').post(uploadUserFile.single('avatar'), updateAvatar)
 userRouter.route('/logout').get(logout)
 userRouter.route('/reset-passwd-jwt').post(updatePasswordWithJWT)
+userRouter.route('/send-verification-link').get(sendVerificationEmail)
 
 export default userRouter
