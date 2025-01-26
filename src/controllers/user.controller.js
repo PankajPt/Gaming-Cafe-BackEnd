@@ -62,7 +62,7 @@ const sendMailToVerify = async(user) => {
             `/users/verify-email`,
             generateRandomKey(user._id)
         ))
-        
+
         return sendMail
     } catch (error) {
         console.log(error)
@@ -124,15 +124,6 @@ const registerUser = asyncHandler( async (req, res) => {
     }
 
     const mailStatus = await sendMailToVerify(user)
-    // sendVerificationLink(new ApiEmail(
-    //     email,
-    //     fullname,
-    //     `Verify Account`,
-    //     `Click on the button below to verify your account:`,
-    //     `/users/verify-email`,
-    //     generateRandomKey(user._id)
-    // ))
-    
     if(!mailStatus){
         console.log('Something went wrong while sending mail')
     }
