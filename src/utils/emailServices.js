@@ -42,7 +42,7 @@ const sendVerificationLink = async function(emailData){
     }
 }
 
-const verifyEmailToken = async (token) => {
+const verifyEmailToken = (token) => {
     try {
         const decodedToken = jwt.verify(token, process.env.RANDOM_KEY_SECRET)
         return decodedToken

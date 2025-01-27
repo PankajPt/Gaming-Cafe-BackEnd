@@ -309,12 +309,13 @@ const sendPasswordResetOnMail = asyncHandler(async(req, res)=>{
     if(!user){
         throw new ApiError(404, 'User is not registerd.')
     }
+
     const sentMail = await sendVerificationLink(new ApiEmail(
         email, 
         user.fullname, 
         'Reset Password', 
         'Click on the button below to reset password for your account:',
-        '/users/reset-password',
+        '/users/passwd-reset-form',
         generateRandomKey(user._id))
     )
 
@@ -361,7 +362,7 @@ const updatePasswordWithEmail = asyncHandler(async(req, res)=>{
             .send(tokenExpiredResponse())
     }
 
-    const decodedToken = verifyEmailToken(shortLiveKey)
+    const decodedToken = await verifyEmailToken(shortLiveKey)
     if (!decodedToken){
         return res
             .status(403)

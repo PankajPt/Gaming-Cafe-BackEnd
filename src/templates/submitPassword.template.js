@@ -87,7 +87,7 @@ const submitPasswordForm = () => {
     <body>
         <div class="container">
             <h2>Reset Your Password</h2>
-            <form action="${BACKEND_BASE_URL}/users/reset-password" method="POST">
+            <form action="${REDIRECTIONS.BACKEND_BASE_URL}/users/update-passwd-mdb" method="POST">
                 <div class="form-group">
                     <label for="new-password">New Password</label>
                     <input type="password" id="new-password" name="newPassword" placeholder="Enter your new password" required>

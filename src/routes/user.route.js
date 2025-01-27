@@ -19,9 +19,9 @@ const userRouter = Router()
 userRouter.route('/register').post(uploadUserFile.single('avatar'), registerUser)
 userRouter.route('/login').post(loginUser)
 userRouter.route('/verify-email').get(userActivation)
-userRouter.route('/reset-passwd-email').post(sendPasswordResetOnMail)
+userRouter.route('/reset-passwd-onEmail').post(sendPasswordResetOnMail)
 userRouter.route('/passwd-reset-form').get(sendPasswordSubmitForm)
-userRouter.route('/passwd-mdb').post(updatePasswordWithEmail)
+userRouter.route('/update-passwd-mdb').post(updatePasswordWithEmail)
 // userRouter.route('/events').get()
 
 // secure routes
