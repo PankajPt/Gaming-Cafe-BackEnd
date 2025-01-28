@@ -5,6 +5,8 @@ import ApiResponse from '../utils/apiResponse.js'
 import ApiEmail from '../utils/apiEmail.js'
 import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js'
 import User from '../models/user.model.js'
+import Event from '../models/event.model.js'
+import Catalogue from '../models/catalogue.model.js'
 import jwt from 'jsonwebtoken'
 import { sendVerificationLink, verifyEmailToken } from '../utils/emailServices.js'
 import { generateVerificationResponse, tokenExpiredResponse, submitPasswordForm } from '../templates/index.template.js'
@@ -402,7 +404,27 @@ const viewUsers = asyncHandler(async(req, res)=>{
         .json(new ApiResponse(200, users, 'Users fetch successfully'))
 })
 
+const getEvents = asyncHandler(async(_, res)=>{
+    const events = await Event.find()
+    if(!events){
+        throw new ApiError(500, 'Something went wrong while fetching data from DB.')
+    }
 
+    return res
+        .status(200)
+        .json(new ApiResponse(200, events, 'Events fetched successfully'))
+})
+
+const getCatalogue = asyncHandler(async(_, res)=>{
+    const gameCatalogue = await Catalogue.find().select('-owner')
+    if(!gameCatalogue){
+        throw new ApiError(500, 'Something went wrong while fetching data from DB.')
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, gameCatalogue, 'Game catalogue fetched successfully.'))
+})
 
 export {
     registerUser,
@@ -415,5 +437,8 @@ export {
     sendPasswordResetOnMail,
     sendPasswordSubmitForm,
     updatePasswordWithEmail,
-    sendVerificationEmail
+    sendVerificationEmail,
+    getEvents,
+    getCatalogue,
+
 }

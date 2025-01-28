@@ -1,15 +1,10 @@
 import { Router } from 'express'
 import {
-    registerUser,
-    loginUser,
-    logout,
-    userActivation,
-    updateAvatar,
-    updatePasswordWithJWT,
-    sendPasswordResetOnMail,
-    sendPasswordSubmitForm,
-    updatePasswordWithEmail,
-    sendVerificationEmail } from '../controllers/user.controller.js'
+    registerUser, loginUser, logout,
+    userActivation, updateAvatar, updatePasswordWithJWT,
+    sendPasswordResetOnMail, sendPasswordSubmitForm, 
+    updatePasswordWithEmail, sendVerificationEmail,
+    getEvents, getCatalogue, } from '../controllers/user.controller.js'
 import { uploadUserFile } from '../middleware/multer.middleware.js'
 import { verifyJWT } from '../middleware/auth.middleware.js'
 
@@ -22,7 +17,8 @@ userRouter.route('/verify-email').get(userActivation)
 userRouter.route('/reset-passwd-onEmail').post(sendPasswordResetOnMail)
 userRouter.route('/passwd-reset-form').get(sendPasswordSubmitForm)
 userRouter.route('/update-passwd-mdb').post(updatePasswordWithEmail)
-// userRouter.route('/events').get()
+userRouter.route('/events').get(getEvents)
+userRouter.route('/catalogue').get(getCatalogue)
 
 // secure routes
 userRouter.use(verifyJWT)
