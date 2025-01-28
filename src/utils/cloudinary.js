@@ -19,12 +19,13 @@ const uploadOnCloudinary = async function(file, type){
         })
         await removeTempFile(file)
         console.log(`File uploaded successfully on cloudinary`)
-        
         return response
     } catch (error) {
         await removeTempFile(file)
         fs.unlinkSync(file)
-        return error
+        console.log('Error: Appear while uploading on cloudinary')
+        console.log(error)
+        return false
     }
 }
 

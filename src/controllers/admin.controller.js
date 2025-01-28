@@ -4,6 +4,7 @@ import ApiResponse from "../utils/apiResponse.js";
 import Event from "../models/event.model.js"
 import User from "../models/user.model.js";
 import Catalogue from '../models/catalogue.model.js'
+import SubscriptionOptions from '../models/subscription.model.js'
 import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js'
 import {rolePermissions, permissions} from '../config/constants.js'
 import fs from 'fs'
@@ -12,6 +13,7 @@ import fs from 'fs'
 // need to handle at frontend admin role change option disabled.
 // if user then option to change role to manager and vice versa
 
+// requiredPermission - pass eval value, userPermissions - pass array
 const verifyUserPermissions = (requiredPermission, userPermissions) => {
     if (!userPermissions.some((permission) => permission === requiredPermission)){
         throw new ApiError(403, 'Access denied: The user does not have permission to view this page.')
@@ -185,5 +187,43 @@ const deleteEvent = asyncHandler(async(req, res)=>{
 
 // create plans
 
+const createSubscriptionPlan = asyncHandler(async(req, res)=>{
+    const requiredPermission = permission.CREATE_SUBSCRIPTION_PLAN
+    verifyUserPermissions(requiredPermission, req.user.permission)
+    const { name, description, period, price } = req.body
+    const paymentQRPath  = req.file?.path
+
+    if(!(name && description && period && price && paymentQRPath)){
+        throw new ApiError(400, 'All fields (name, description, period, price) are required.')
+    }
+
+    const cloudiResponse = await uploadOnCloudinary(paymentQR, 'image')
+    if(!cloudiResponse){
+        throw new ApiError(500, 'Something went wrong while uploading image on cloudinary.')
+    }
+
+    const subscriptionData = await SubscriptionOptions.create(
+        {
+            name,
+            description,
+            period,
+            price,
+            paymentQR: {
+                url: cloudiResponse?.secure_url,
+                publicId: public_id
+            }
+        }
+    )
+
+    if(!subscriptionData){
+        deleteFromCloudinary(cloudiResponse.url, cloudiResponse.public_id, 'image')
+        throw new ApiError(500, 'Something went wrong while creating new plan.')
+    }
+
+    return res
+        .status(201)
+        .json(new ApiResponse(200, subscriptionData, 'New subscription plan created.'))
+})
+
 export { createManager, addNewGame, deleteGame, createEvent,
-    deleteEvent, }
+    deleteEvent, createSubscriptionPlan, }
