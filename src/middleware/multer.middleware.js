@@ -11,7 +11,18 @@ const storage = multer.diskStorage({
     }
 });
 
-const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+const allowedTypes = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/bmp',
+  'image/webp',
+  'image/heif',
+  'image/heic',
+  'image/svg+xml',
+  'image/tiff',
+  'image/vnd.microsoft.icon',
+]
 
 const uploadUserFile = multer(
     { 
