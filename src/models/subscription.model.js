@@ -28,7 +28,7 @@ const subscriptionSchema = new Schema(
                 required: true
             },
             publicId: {
-                type: true,
+                type: String,
                 required: true
             }
         }

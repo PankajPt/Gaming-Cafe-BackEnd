@@ -188,8 +188,8 @@ const deleteEvent = asyncHandler(async(req, res)=>{
 // create plans
 
 const createSubscriptionPlan = asyncHandler(async(req, res)=>{
-    const requiredPermission = permission.CREATE_SUBSCRIPTION_PLAN
-    verifyUserPermissions(requiredPermission, req.user.permission)
+    const requiredPermission = permissions.CREATE_SUBSCRIPTION_PLAN
+    verifyUserPermissions(requiredPermission, req.user.permissions)
     const { name, description, period, price } = req.body
     const paymentQRPath  = req.file?.path
 
