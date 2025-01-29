@@ -91,18 +91,27 @@ const registerUser = asyncHandler( async (req, res) => {
     
     if (!password){
         removeTempFile(avatarFilePath)
-        throw new ApiError(400, 'All fileds(username, fullname, email, password) are required. ')
+        // throw new ApiError(400, 'All fileds(username, fullname, email, password) are required. ')
+        return res
+            .status(422)
+            .json(new ApiResponse(422, {}, 'Password is required.'))
     }
 
     if (![username, fullname, email].every((field)=> field?.trim()) ){
         removeTempFile(avatarFilePath)
-        throw new ApiError(400, 'All fileds(username, fullname, email, password) are required. ')
+        // throw new ApiError(400, 'All fields (username, fullname, email, and password) are required.');
+        return res
+        .status(422)
+        .json(new ApiResponse(422, {}, 'All fields (username, fullname, email, and password) are required.'))
     }
 
     const existingUser =  await User.findOne({ $or: [{ username }, { email }] })
     if (existingUser) {
         removeTempFile(avatarFilePath)
-        throw new ApiError(409, 'Username or email already exist')
+        // throw new ApiError(409, 'Username or email already exist')
+        return res
+        .status(409)
+        .json(new ApiResponse(409, {}, 'Username or email already exists'))
     }
 
     let avatar = ""
@@ -122,7 +131,10 @@ const registerUser = asyncHandler( async (req, res) => {
 
     if (!user){
         removeTempFile(avatarFilePath)
-        throw new ApiError(500, 'Something went wrong while registering user in DB')
+        // throw new ApiError(500, 'An error occurred while registering the user in the database.');
+        return res
+        .status(500)
+        .json(new ApiResponse(500, {}, 'Something went wrong. Please try again later.'))
     }
 
     const mailStatus = await sendMailToVerify(user)
