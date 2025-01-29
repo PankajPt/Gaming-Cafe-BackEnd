@@ -22,7 +22,7 @@ userRouter.route('/catalogue').get(getCatalogue)
 
 // secure routes
 userRouter.use(verifyJWT)
-userRouter.route('/update-avatar').post(uploadUserFile.single('avatar'), updateAvatar)
+userRouter.route('/update-avatar').patch(uploadUserFile.single('avatar'), updateAvatar)
 userRouter.route('/logout').get(logout)
 userRouter.route('/reset-passwd-jwt').post(updatePasswordWithJWT)
 userRouter.route('/send-verification-link').get(sendVerificationEmail)
