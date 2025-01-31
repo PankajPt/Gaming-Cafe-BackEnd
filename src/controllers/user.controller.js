@@ -155,7 +155,7 @@ const registerUser = asyncHandler( async (req, res) => {
 })
 
 const loginUser = asyncHandler( async (req, res) => {
-    const { username, email, password } = req.body    
+    const { username, email, password } = req.body
     if (!(username || email)){
         return res
             .status(400)
