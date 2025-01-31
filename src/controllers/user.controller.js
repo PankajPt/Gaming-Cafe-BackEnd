@@ -143,22 +143,29 @@ const registerUser = asyncHandler( async (req, res) => {
 })
 
 const loginUser = asyncHandler( async (req, res) => {
-    const { username, email, password } = req.body
-
+    const { username, email, password } = req.body    
     if (!(username || email)){
-        throw new ApiError(400, 'Login required username or email-id')
+        return res
+            .status(400)
+            .json(new ApiResponse(400, {}, 'Username or email is required for login.'))
     }
     // sanitize if required username and email
     // const newUsername = username.toLowerCase().trim()
     // const newEmail = email.toLowerCase().trim()
     const user = await User.findOne({$or: [{username},{email}]})
     if (!user){
-        throw new ApiError(404, 'User not found')
+        // throw new ApiError(404, 'User not found')
+        return res
+        .status(404)
+        .json(new ApiResponse(404, {}, 'User not found'))
     }
 
     const validUser = await user.isValidPassword(password)
     if (!validUser){
-        throw new ApiError(401, 'Password Invalid')
+        // throw new ApiError(401, 'Password Invalid')
+        return res
+        .status(401)
+        .json(new ApiResponse(401, {}, 'Invalid password'))
     }
 
     if ( user.permissions.length < rolePermissions[user.role].length ){
@@ -182,7 +189,6 @@ const loginUser = asyncHandler( async (req, res) => {
         .cookie('accessToken', accessToken, options)
         .cookie('refreshToken', refreshToken, options)
         .json(new ApiResponse(200, {plainUser, accessToken, refreshToken}, `${user.username} login successfull`))
-
 })
 
 const logout = asyncHandler(async(req, res) => {
