@@ -193,14 +193,15 @@ const loginUser = asyncHandler( async (req, res) => {
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
     
     const plainUser = user.toObject()
-    delete plainUser.refreshToken
+    // delete plainUser.refreshToken
     delete plainUser.password
+    plainUser.accessToken = accessToken
 
     return res
         .status(200)
         .cookie('accessToken', accessToken, options)
         .cookie('refreshToken', refreshToken, options)
-        .json(new ApiResponse(200, {plainUser, accessToken, refreshToken}, `${user.username} login successfull`))
+        .json(new ApiResponse(200, plainUser, `${user.username} login successfull`))
 })
 
 const logout = asyncHandler(async(req, res) => {
