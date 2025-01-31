@@ -155,8 +155,8 @@ const registerUser = asyncHandler( async (req, res) => {
 })
 
 const loginUser = asyncHandler( async (req, res) => {
-    const { username, email, password } = req.body
-    if (!(username || email)){
+    const { username, password } = req.body
+    if (!username){
         return res
             .status(400)
             .json(new ApiResponse(400, {}, 'Username or email is required for login.'))
@@ -164,7 +164,7 @@ const loginUser = asyncHandler( async (req, res) => {
     // sanitize if required username and email
     // const newUsername = username.toLowerCase().trim()
     // const newEmail = email.toLowerCase().trim()
-    const user = await User.findOne({$or: [{username},{email}]})
+    const user = await User.findOne({$or: [{username},{email: username}]})
     if (!user){
         // throw new ApiError(404, 'User not found')
         return res
@@ -193,9 +193,9 @@ const loginUser = asyncHandler( async (req, res) => {
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
     
     const plainUser = user.toObject()
-    // delete plainUser.refreshToken
+    delete plainUser.refreshToken
     delete plainUser.password
-    plainUser.accessToken = accessToken
+    // plainUser.accessToken = accessToken
 
     return res
         .status(200)
