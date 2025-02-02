@@ -15,7 +15,9 @@ import { rolePermissions, permissions } from '../config/constants.js'
 
 const  options = {
     httpOnly: true,
-    secure: true
+    secure: true, //true for production setup
+    sameSite: 'none', //none for prod setup
+    // domain: 'localhost'
   }
 
 const removeTempFile = async(file) => {
@@ -214,6 +216,19 @@ const logout = asyncHandler(async(req, res) => {
             .json(new ApiResponse(200, {}, `${user.username} logged out`))
 })
 
+const sendVerificationMailOverJWT = asyncHandler(async(req, res)=>{
+    const user = req.user
+    const resposne = await sendMailToVerify(user)
+    if(!resposne){
+        return res
+            .status(500)
+            .json(new ApiResponse(500, {}, 'Something went wrong, Please try again'))
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, resposne, 'Verification mail sent successfully on registered email-id.'))
+})
 // jwt decode and provide user from id
 const userActivation = asyncHandler(async(req, res)=> {
     const { token } = req.query
@@ -451,6 +466,7 @@ export {
     logout,
     userActivation,
     updateAvatar,
+    sendVerificationMailOverJWT,
     viewUsers,
     updatePasswordWithJWT,
     sendPasswordResetOnMail,
