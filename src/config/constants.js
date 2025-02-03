@@ -14,7 +14,8 @@ const permissions = {
     ADD_NEW_GAME: 'add_new_game',
     DELETE_GAME: 'delete_game',
     DELETE_EVENT: 'delete_event',
-    CHANGE_USER_PERMISSION: 'change_user_permission'
+    CHANGE_USER_PERMISSION: 'change_user_permission',
+    CREATE_SUBSCRIPTION_PLAN: 'create_subscription_plan'
 }
 const rolePermissions = {
     user: [],
@@ -27,7 +28,8 @@ const rolePermissions = {
         permissions.ADD_NEW_GAME,
         permissions.DELETE_GAME,
         permissions.DELETE_EVENT,
-        permissions.CHANGE_USER_PERMISSION
+        permissions.CHANGE_USER_PERMISSION,
+        permissions.CREATE_SUBSCRIPTION_PLAN
     ]
 }
 

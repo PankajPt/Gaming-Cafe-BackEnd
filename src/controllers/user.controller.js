@@ -13,11 +13,18 @@ import { generateVerificationResponse, tokenExpiredResponse, submitPasswordForm 
 import { rolePermissions, permissions } from '../config/constants.js'
 
 
+// const  options = {
+//     httpOnly: true,
+//     secure: false, //true for production setup
+//     sameSite: 'lax', //none for prod setup
+//     domain: 'localhost',
+//     maxAge: 24 * 60 * 60 * 1000
+//   }
+
 const  options = {
     httpOnly: true,
-    secure: true, //true for production setup
-    sameSite: 'none', //none for prod setup
-    // domain: 'localhost',
+    secure: true,
+    sameSite: 'none',
     maxAge: 24 * 60 * 60 * 1000
   }
 
@@ -339,12 +346,18 @@ const updatePasswordWithJWT = asyncHandler(async(req, res)=>{
 const sendPasswordResetOnMail = asyncHandler(async(req, res)=>{
     const { email } = req.body
     if(!email){
-        throw new ApiError(400, 'Email-ID is required to reset password.')
+        // throw new ApiError(400, 'Email-ID is required to reset password.')
+        return res
+            .status(400)
+            .json(new ApiResponse(400, {}, 'Email-ID is required to reset the password.'))
     }
 
     const user = await User.findOne({email: email})
     if(!user){
-        throw new ApiError(404, 'User is not registerd.')
+        // throw new ApiError(404, 'User is not registered.')
+        return res
+            .status(404)
+            .json(new ApiResponse(404, {}, 'User is not registered.'))
     }
 
     const sentMail = await sendVerificationLink(new ApiEmail(
@@ -357,7 +370,10 @@ const sendPasswordResetOnMail = asyncHandler(async(req, res)=>{
     )
 
     if(!sentMail){
-        throw new ApiError(500, 'Something went wrong while sending reset email. Please try again after some time.')
+        // throw new ApiError(500, 'Something went wrong while sending reset email. Please try again after some time.')
+        return res
+            .status(500)
+            .json(new ApiResponse(500, {}, 'An error occurred while sending the password reset email. Please try again later.'))
     }
 
     return res
