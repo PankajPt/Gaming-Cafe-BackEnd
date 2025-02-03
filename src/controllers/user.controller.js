@@ -93,6 +93,9 @@ const sendVerificationEmail = asyncHandler(async(req, res)=>{
         .json(new ApiResponse(200, {}, 'Verification link send to registered mail-id.'))
 })
 
+const refreshAccessAndRefreshToken = asyncHandler(async(req, res)=>{
+
+})
 
 const registerUser = asyncHandler( async (req, res) => {
     const { username, fullname, email, password } = req.body
@@ -310,26 +313,38 @@ const updateAvatar = asyncHandler(async(req, res)=> {
 const updatePasswordWithJWT = asyncHandler(async(req, res)=>{
     const { current, newPassword, confirm } = req.body
     if (!(current && newPassword && confirm)){
-        throw new ApiError(400, 'All fields(current password, new password, confirm password) are required.')
+        return res
+        .status(400)
+        .json(new ApiResponse(401, {}, 'All fields(current password, new password, confirm password) are required.'))
+        // throw new ApiError(400, 'All fields(current password, new password, confirm password) are required.')
     }
 
     if ( newPassword !== confirm ){
-        throw new ApiError(400, 'New and cofirm password not match')
+        return res
+        .status(400)
+        .json(new ApiResponse(400, {}, 'New and cofirm password not match'))
+        // throw new ApiError(400, 'New and cofirm password not match')
     }
     const user = await User.findById(req.user._id)
     const validUser = await user.isValidPassword(current)
     if(!validUser){
-        throw new ApiError(401, 'Invalid current password')
+        return res
+            .status(401)
+            .json(new ApiResponse(401, {}, 'Invalid current password'))
+        // throw new ApiError(401, 'Invalid current password')
     }
 
     user.password = newPassword
     const savePassword = await user.save()
 
     if(!savePassword){
-        throw new ApiError(500, 'Something went wrong while updatin password in DB.')
+        return res
+            .status(500)
+            .json(new ApiResponse(500, {}, 'Something went wrong while updating password. Please try again'))
+        // throw new ApiError(500, 'Something went wrong while updatin password in DB.')
     }
 
-    const { accessToken, refreshToken } = generateAccessAndRefreshToken(user._id)
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
     const plainUser = user.toObject()
     delete plainUser.password
     delete plainUser.refreshToken
@@ -338,7 +353,7 @@ const updatePasswordWithJWT = asyncHandler(async(req, res)=>{
         .status(200)
         .cookie('accessToken', accessToken, options)
         .cookie('refreshToken', refreshToken, options)
-        .json(200, plainUser, 'Password updated successfully' )
+        .json(new ApiResponse(200, plainUser, 'Password updated successfully') )
 
 })
 
@@ -492,5 +507,6 @@ export {
     sendVerificationEmail,
     getEvents,
     getCatalogue,
+    refreshAccessAndRefreshToken,
 
 }
