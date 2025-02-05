@@ -11,7 +11,7 @@ import jwt from 'jsonwebtoken'
 import { sendVerificationLink, verifyEmailToken } from '../utils/emailServices.js'
 import { generateVerificationResponse, tokenExpiredResponse, submitPasswordForm } from '../templates/index.template.js'
 import { rolePermissions, permissions } from '../config/constants.js'
-import { json } from 'stream/consumers'
+
 
 
 // const  options = {
@@ -99,7 +99,7 @@ const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
     if ( !oldRefreshToken ) {
         return res
             .status(400)
-            .json(new ApiResponse(400, {}, 'FRL'))
+            .json(new ApiResponse(400, {forcedLogout: true}, 'FRL'))
     }
 
     try {
@@ -107,29 +107,29 @@ const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
         if (!decodedUser){
             return res
             .status(401)
-            .json(new ApiResponse(401, {}, 'FRL')) //forced re-login
+            .json(new ApiResponse(401, {forcedLogout: true}, 'FRL')) //forced re-login
         }
 
         const user = await User.findById(decodedUser._id)
         if(!user){
             return res
                 .status(404)
-                .json(new ApiResponse(404, {}, 'FRL'))
+                .json(new ApiResponse(404, {forcedLogout: true}, 'FRL'))
         }
 
-        const {accessToken, refreshToken} =  await generateAccessAndRefreshToken(user._id)
+        const {accessToken, refreshToken} =  await generateAccessAndRefreshToken(user._id).select('-password -refreshToken -createdAt -updatedAt')
         if (!(accessToken && refreshToken)){
             return res
                 .status(500)
-                .json(new ApiResponse(500, {}, 'FRL'))
+                .json(new ApiResponse(500, {forcedLogout: false}, 'Try again'))
         }
         
         user.refreshToken = refreshToken
         await user.save()
     
         const plainUser = user.toObject()
-        delete plainUser.refreshToken
-        delete plainUser.password
+        // delete plainUser.refreshToken
+        // delete plainUser.password
     
         return res
             .status(200)
@@ -141,7 +141,7 @@ const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
         console.log(error)
         return res
             .status(401)
-            .json(new ApiResponse(401, {}, 'FRL'))
+            .json(new ApiResponse(401, {forcedLogout: true}, 'FRL'))
     }
 })
 
