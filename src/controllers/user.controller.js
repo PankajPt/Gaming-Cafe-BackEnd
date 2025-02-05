@@ -11,6 +11,7 @@ import jwt from 'jsonwebtoken'
 import { sendVerificationLink, verifyEmailToken } from '../utils/emailServices.js'
 import { generateVerificationResponse, tokenExpiredResponse, submitPasswordForm } from '../templates/index.template.js'
 import { rolePermissions, permissions } from '../config/constants.js'
+import { json } from 'stream/consumers'
 
 
 // const  options = {
@@ -93,8 +94,55 @@ const sendVerificationEmail = asyncHandler(async(req, res)=>{
         .json(new ApiResponse(200, {}, 'Verification link send to registered mail-id.'))
 })
 
-const refreshAccessAndRefreshToken = asyncHandler(async(req, res)=>{
+const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
+    const oldRefreshToken = req.cookies?.refreshToken
+    if ( !oldRefreshToken ) {
+        return res
+            .status(400)
+            .json(new ApiResponse(400, {}, 'FRL'))
+    }
 
+    try {
+        const decodedUser = jwt.verify(oldRefreshToken, process.env.REFRESH_TOKEN_SECRET)
+        if (!decodedUser){
+            return res
+            .status(401)
+            .json(new ApiResponse(401, {}, 'FRL')) //forced re-login
+        }
+
+        const user = await User.findById(decodedUser._id)
+        if(!user){
+            return res
+                .status(404)
+                .json(new ApiResponse(404, {}, 'FRL'))
+        }
+
+        const {accessToken, refreshToken} =  await generateAccessAndRefreshToken(user._id)
+        if (!(accessToken && refreshToken)){
+            return res
+                .status(500)
+                .json(new ApiResponse(500, {}, 'FRL'))
+        }
+        
+        user.refreshToken = refreshToken
+        await user.save()
+    
+        const plainUser = user.toObject()
+        delete plainUser.refreshToken
+        delete plainUser.password
+    
+        return res
+            .status(200)
+            .cookie('accessToken', accessToken, options)
+            .cookie('refreshToken', refreshToken, options)
+            .json(new ApiResponse(200, plainUser, 'Tokens refreshed.'))
+
+    } catch (error) {
+        console.log(error)
+        return res
+            .status(401)
+            .json(new ApiResponse(401, {}, 'FRL'))
+    }
 })
 
 const registerUser = asyncHandler( async (req, res) => {
@@ -507,6 +555,6 @@ export {
     sendVerificationEmail,
     getEvents,
     getCatalogue,
-    refreshAccessAndRefreshToken,
+    renewAccessAndRefreshToken,
 
 }

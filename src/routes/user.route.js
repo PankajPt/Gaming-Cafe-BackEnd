@@ -4,7 +4,8 @@ import {
     userActivation, updateAvatar, updatePasswordWithJWT,
     sendPasswordResetOnMail, sendPasswordSubmitForm, 
     updatePasswordWithEmail, sendVerificationEmail,
-    getEvents, getCatalogue, sendVerificationMailOverJWT } from '../controllers/user.controller.js'
+    getEvents, getCatalogue, sendVerificationMailOverJWT,
+    renewAccessAndRefreshToken, } from '../controllers/user.controller.js'
 import { uploadUserFile } from '../middleware/multer.middleware.js'
 import { verifyJWT } from '../middleware/auth.middleware.js'
 
@@ -19,6 +20,7 @@ userRouter.route('/passwd-reset-form').get(sendPasswordSubmitForm)
 userRouter.route('/update-passwd-mdb').post(updatePasswordWithEmail)
 userRouter.route('/events').get(getEvents)
 userRouter.route('/catalogue').get(getCatalogue)
+userRouter.route('/refresh').get(renewAccessAndRefreshToken)
 
 // secure routes
 userRouter.use(verifyJWT)

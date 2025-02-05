@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken'
 import User from '../models/user.model.js'
 import asyncHandler from '../utils/asyncHandler.js'
 import ApiError from '../utils/apiError.js'
+import ApiResponse from '../utils/apiResponse.js'
 
 
 const verifyJWT = asyncHandler(async (req, res, next) => {
@@ -10,7 +11,7 @@ const verifyJWT = asyncHandler(async (req, res, next) => {
         if (!token) {
             return res
                 .status(401)
-                .send('Unauthorized request.')
+                .json(new ApiResponse(401, {}, 'Unauthorized request.'))
             // throw new ApiError(401, 'Unauthorized request')
         }
     
@@ -18,7 +19,7 @@ const verifyJWT = asyncHandler(async (req, res, next) => {
         if (!decodedToken) {
             return res
                 .status(401)
-                .send('Invalid Access Token')
+                .json(new ApiResponse(401, {}, 'Invalid Access Token'))
             // throw new ApiError(401, 'Invalid Access Token')
         }
     
@@ -26,17 +27,17 @@ const verifyJWT = asyncHandler(async (req, res, next) => {
         if (!user) {
             return res
                 .status(404)
-                .send('User not found.')
+                .json(new ApiResponse(404, {}, 'User not found.'))
             // throw new ApiError(401, 'User not found')
         }
 
         req.user = user
         next()
     } catch (error) {
-        console.log(error)
+
         return res
             .status(401)
-            .send(error.message || `Invalid Access Token`)
+            .json(new ApiResponse(401, {}, error.message || `Invalid Access Token`))
         // throw new ApiError(401, error?.message || `Invalid Access Token`)   
     }
 })
