@@ -88,10 +88,13 @@ const sendVerificationEmail = asyncHandler(async(req, res)=>{
     const mailStatus = await sendMailToVerify(user)
     if(!mailStatus){
         console.log('Something went wrong while sending mail')
+        return res
+        .status(500)
+        .json(new ApiResponse(500, {}, 'Something went wrong, Please try again'))
     }
     return res
-        .status(200)
-        .json(new ApiResponse(200, {}, 'Verification link send to registered mail-id.'))
+        .status(201)
+        .json(new ApiResponse(201, mailStatus, 'Verification mail sent successfully on registered email-id.'))
 })
 
 const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
@@ -117,7 +120,7 @@ const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
                 .json(new ApiResponse(404, {forcedLogout: true}, 'FRL'))
         }
 
-        const {accessToken, refreshToken} =  await generateAccessAndRefreshToken(user._id).select('-password -refreshToken -createdAt -updatedAt')
+        const {accessToken, refreshToken} =  await generateAccessAndRefreshToken(user._id)
         if (!(accessToken && refreshToken)){
             return res
                 .status(500)
@@ -128,9 +131,11 @@ const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
         await user.save()
     
         const plainUser = user.toObject()
-        // delete plainUser.refreshToken
-        // delete plainUser.password
-    
+        delete plainUser.refreshToken
+        delete plainUser.password
+        delete plainUser.createdAt
+        delete plainUser.updatedAt
+        
         return res
             .status(200)
             .cookie('accessToken', accessToken, options)
@@ -275,19 +280,6 @@ const logout = asyncHandler(async(req, res) => {
             .json(new ApiResponse(200, {}, `${user.username} logged out`))
 })
 
-const sendVerificationMailOverJWT = asyncHandler(async(req, res)=>{
-    const user = req.user
-    const resposne = await sendMailToVerify(user)
-    if(!resposne){
-        return res
-            .status(500)
-            .json(new ApiResponse(500, {}, 'Something went wrong, Please try again'))
-    }
-
-    return res
-        .status(201)
-        .json(new ApiResponse(201, resposne, 'Verification mail sent successfully on registered email-id.'))
-})
 // jwt decode and provide user from id
 const userActivation = asyncHandler(async(req, res)=> {
     const { token } = req.query
@@ -506,11 +498,17 @@ const viewUsers = asyncHandler(async(req, res)=>{
     const requiredPermission = permissions.VIEW_ALL_USERS
     const userPermissions = req.user.permissions
     if (!userPermissions.some((permission) => permission === requiredPermission )){ 
-        throw new ApiError(403, 'Access denied: The user does not have permission to view this page.')
+        // throw new ApiError(403, 'Access denied: The user does not have permission to view this page.')
+        return res
+            .status(403)
+            .json(new ApiResponse(403, {}, 'Access denied: The user does not have permission to view this page.'))
     }
     const users = await User.find()
     if (!users){
-        throw new ApiError(404, 'No registered users found');
+        return res
+            .status(404)
+            .json(new ApiResponse(404, {}, 'User not found'))
+        // throw new ApiError(404, 'No registered users found');
     }
 
     return res
@@ -521,7 +519,10 @@ const viewUsers = asyncHandler(async(req, res)=>{
 const getEvents = asyncHandler(async(_, res)=>{
     const events = await Event.find()
     if(!events){
-        throw new ApiError(500, 'Something went wrong while fetching data from DB.')
+        // throw new ApiError(500, 'Something went wrong while fetching data from DB.')
+        return res 
+            .status(500)
+            .json(new ApiResponse(500, {}, 'Something went wrong, please try again'))
     }
 
     return res
@@ -532,7 +533,11 @@ const getEvents = asyncHandler(async(_, res)=>{
 const getCatalogue = asyncHandler(async(_, res)=>{
     const gameCatalogue = await Catalogue.find().select('-owner')
     if(!gameCatalogue){
-        throw new ApiError(500, 'Something went wrong while fetching data from DB.')
+        // throw new ApiError(500, 'Something went wrong while fetching data from DB.')
+        return res 
+        .status(500)
+        .json(new ApiResponse(500, {}, 'Something went wrong, please try again'))
+
     }
 
     return res
@@ -546,7 +551,6 @@ export {
     logout,
     userActivation,
     updateAvatar,
-    sendVerificationMailOverJWT,
     viewUsers,
     updatePasswordWithJWT,
     sendPasswordResetOnMail,

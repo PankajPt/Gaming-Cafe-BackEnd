@@ -16,7 +16,8 @@ import fs from 'fs'
 // requiredPermission - pass eval value, userPermissions - pass array
 const verifyUserPermissions = (requiredPermission, userPermissions) => {
     if (!userPermissions.some((permission) => permission === requiredPermission)){
-        throw new ApiError(403, 'Access denied: The user does not have permission to view this page.')
+        // throw new ApiError(403, 'Access denied: The user does not have permission to view this page.')
+        return false
     }
     return true
 }
@@ -27,10 +28,18 @@ const removeTempFile = async(file) => {
 
 const createManager = asyncHandler(async(req, res)=> {
     const requiredPermission = permissions.CHANGE_USER_PERMISSION
-    verifyUserPermissions(requiredPermission, req.user.permissions)
+    const isAuthorized = verifyUserPermissions(requiredPermission, req.user.permissions)
+    if(!isAuthorized){
+        return res
+            .status(403)
+            .json(new ApiResponse(403, {}, 'Access denied: The user does not have permission to view this page.'))
+    }
     const { username, newRole } = req.body
     if(!(username && newRole)){
-        throw new ApiError(400, 'Username cannot be blank');
+        // throw new ApiError(400, 'Username cannot be blank');
+        return res
+            .status(400)
+            .json(new ApiResponse(400, {}, 'Username and role are required.'))
     }
     const modifiedUsername = username.toLowerCase().trim()
     const user = await User.findOneAndUpdate(
@@ -49,7 +58,10 @@ const createManager = asyncHandler(async(req, res)=> {
     ).select('-password -refreshToken')
 
     if(!user){
-        throw new ApiError(404, 'User not found')
+        // throw new ApiError(404, 'User not found')
+        return res
+            .status(404)
+            .json(new ApiResponse(404, {}, 'User not found'))
     }
 
     return res
@@ -62,18 +74,29 @@ const addNewGame = asyncHandler(async(req, res)=>{
     const { title, description } = req.body
     const imageFilePath = req.file?.path
     const requiredPermission = permissions.ADD_NEW_GAME
-    verifyUserPermissions(requiredPermission, req.user.permissions)
+    const isAuthorized = verifyUserPermissions(requiredPermission, req.user.permissions)
+    if(!isAuthorized){
+        return res
+            .status(403)
+            .json(new ApiResponse(403, {}, 'Access denied: The user does not have permission to view this page.'))
+    }
 
     if (!(title && description && imageFilePath)){
         await removeTempFile(imageFilePath)
-        throw new ApiError(400, 'All fields(title, description, image) are required.')
+        // throw new ApiError(400, 'All fields(title, description, image) are required.')
+        return res
+            .status(400)
+            .json(new ApiResponse(400, {}, 'All fields(title, description, image) are required.'))
     }
 
     const cloudiResponse = await uploadOnCloudinary(imageFilePath, 'image')
 
     if(!cloudiResponse){
         await removeTempFile(imageFilePath)
-        throw new ApiError(500, "Something went wrong while uploading game image on cloudinary.")
+        // throw new ApiError(500, "Something went wrong while uploading game image on cloudinary.")
+        return res
+        .status(500)
+        .json(new ApiResponse(500, {}, 'Something went wrong, please try again.'))
     }
 
     const game = await Catalogue.create(
@@ -90,7 +113,11 @@ const addNewGame = asyncHandler(async(req, res)=>{
 
     if(!game){
         await deleteFromCloudinary(cloudiResponse.url, cloudiResponse.public_id, 'image')
-        throw new ApiError(500, 'Something went wrong while creating new entry in DB.')
+        // throw new ApiError(500, 'Something went wrong while creating new entry in DB.')
+        return res
+        .status(500)
+        .json(new ApiResponse(500, {}, 'Something went wrong, please try again.'))
+        
     }
 
     return res
@@ -103,15 +130,26 @@ const addNewGame = asyncHandler(async(req, res)=>{
 const deleteGame = asyncHandler(async(req, res)=>{
     const { gameId } = req.body
     const requiredPermission = permissions.DELETE_GAME
-    verifyUserPermissions(requiredPermission, req.user.permissions)
+    const isAuthorized = verifyUserPermissions(requiredPermission, req.user.permissions)
+    if(!isAuthorized){
+        return res
+            .status(403)
+            .json(new ApiResponse(403, {}, 'Access denied: The user does not have permission to view this page.'))
+    }
     if(!gameId){
-        throw new ApiError(400, 'Game id is required to perform this operation')
+        // throw new ApiError(400, 'Game id is required to perform this operation')
+        return res
+        .status(400)
+        .json(new ApiResponse(400, {}, 'Game id is required to perform this operation'))
     }
 
     const destroyGame = await Catalogue.findOneAndDelete({_id: gameId}).select('thumbnail')
     console.log(destroyGame)
     if (!destroyGame){
-        throw new ApiError(404, 'No documents matched the filter')
+        // throw new ApiError(404, 'No documents matched the filter')
+        return res
+        .status(404)
+        .json(new ApiResponse(404, {}, 'Game not found in catalogue.'))
     }
 
     await deleteFromCloudinary("", destroyGame.publicId, 'image')
@@ -127,11 +165,19 @@ const createEvent = asyncHandler(async(req, res)=>{
     const { title, description, date, prizeMoney, entryFee } = req.body
     const imageFilePath = req.file?.path
     const requiredPermission = permissions.CREATE_EVENT
-    verifyUserPermissions(requiredPermission, req.user.permissions)
+    const isAuthorized = verifyUserPermissions(requiredPermission, req.user.permissions)
+    if(!isAuthorized){
+        return res
+            .status(403)
+            .json(new ApiResponse(403, {}, 'Access denied: The user does not have permission to view this page.'))
+    }
 
     if (!(title && description && imageFilePath && prizeMoney && entryFee)){
         await removeTempFile(imageFilePath)
-        throw new ApiError(400, 'All fields (title, description, image, prizeMoney, entryFee) are required')
+        // throw new ApiError(400, 'All fields (title, description, image, prizeMoney, entryFee) are required')
+        return res
+            .status(400)
+            .json(new ApiResponse(400, {}, 'All fields (title, description, image, prizeMoney, entryFee) are required'))
     }
 
     const cloudiResponse = await uploadOnCloudinary(imageFilePath, 'image')
@@ -151,7 +197,10 @@ const createEvent = asyncHandler(async(req, res)=>{
 
     if(!newEvent){
         await deleteFromCloudinary(cloudiResponse.url, cloudiResponse.public_id, 'image')
-        throw new ApiError(500, 'Enable to create event at the moment. something went wrong while updating DB.')
+        // throw new ApiError(500, 'Enable to create event at the moment. something went wrong while updating DB.')
+        return res
+            .status(500)
+            .json(new ApiResponse(500, {}, 'Something went wrong, please try again.'))
     }
 
     return res
@@ -194,12 +243,18 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
     const paymentQRPath  = req.file?.path
 
     if(!(name && description && period && price && paymentQRPath)){
-        throw new ApiError(400, 'All fields (name, description, period, price) are required.')
+        // throw new ApiError(400, 'All fields (name, description, period, price) are required.')
+        return res
+            .status(400)
+            .json(new ApiResponse(400, {}, 'All fields (name, description, period, price) are required.'))
     }
 
     const cloudiResponse = await uploadOnCloudinary(paymentQR, 'image')
     if(!cloudiResponse){
-        throw new ApiError(500, 'Something went wrong while uploading image on cloudinary.')
+        // throw new ApiError(500, 'Something went wrong while uploading image on cloudinary.')
+        return res
+            .status(500)
+            .json(new ApiResponse(500, {}, 'Something went wrong, please try again.'))
     }
 
     const subscriptionData = await SubscriptionOptions.create(
@@ -217,7 +272,10 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
 
     if(!subscriptionData){
         deleteFromCloudinary(cloudiResponse.url, cloudiResponse.public_id, 'image')
-        throw new ApiError(500, 'Something went wrong while creating new plan.')
+        // throw new ApiError(500, 'Something went wrong while creating new plan.')
+        return res
+            .status(500)
+            .json(new ApiResponse(500, {}, 'Something went wrong, please try again.'))
     }
 
     return res
