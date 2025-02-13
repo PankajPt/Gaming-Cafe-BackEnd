@@ -7,7 +7,7 @@ import {
     getEvents, getCatalogue, renewAccessAndRefreshToken, } from '../controllers/user.controller.js'
 import { uploadUserFile } from '../middleware/multer.middleware.js'
 import { verifyJWT } from '../middleware/auth.middleware.js'
-
+// import { upload } from '../middleware/multer.middleware.js'
 
 const userRouter = Router()
 
@@ -23,7 +23,6 @@ userRouter.route('/refresh').get(renewAccessAndRefreshToken)
 
 // secure routes
 userRouter.use(verifyJWT)
-// userRouter.route('/verify-email-jwt').get(sendVerificationMailOverJWT)
 userRouter.route('/update-avatar').patch(uploadUserFile.single('avatar'), updateAvatar)
 userRouter.route('/logout').get(logout)
 userRouter.route('/reset-passwd-jwt').post(updatePasswordWithJWT)

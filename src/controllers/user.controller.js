@@ -13,7 +13,7 @@ import { generateVerificationResponse, tokenExpiredResponse, submitPasswordForm 
 import { rolePermissions, permissions } from '../config/constants.js'
 
 
-
+// Local
 // const  options = {
 //     httpOnly: true,
 //     secure: false, //true for production setup
@@ -22,6 +22,7 @@ import { rolePermissions, permissions } from '../config/constants.js'
 //     maxAge: 24 * 60 * 60 * 1000
 //   }
 
+//   Prod
 const  options = {
     httpOnly: true,
     secure: true,
@@ -154,7 +155,7 @@ const registerUser = asyncHandler( async (req, res) => {
     const { username, fullname, email, password } = req.body
     // console.log(req.file)
     const avatarFilePath = req.file?.path
-    
+    console.log(req.file)
     if (!password){
         removeTempFile(avatarFilePath)
         // throw new ApiError(400, 'All fileds(username, fullname, email, password) are required. ')
@@ -312,14 +313,18 @@ const userActivation = asyncHandler(async(req, res)=> {
 const updateAvatar = asyncHandler(async(req, res)=> {
     const avatarFilePath = req.file?.path
     if (!avatarFilePath) {
-        throw new ApiError(400, 'Avatar file required')
+        return res
+            .status(400)
+            .json(new ApiResponse(400, {}, 'Avatar file required'))
     }
     
     const oldAvatar = req.user.avatar
     const uploadResponse = await uploadOnCloudinary(avatarFilePath, 'image')
     if (!uploadResponse) {
         removeTempFile(avatarFilePath)
-        throw new ApiError(500, `Something went wrong while uploading on cloudinary`)
+        return res
+        .status(500)
+        .json(new ApiResponse(500, {}, 'Something went wrong. Please try again.'))
     }
 
     const user = await User.findByIdAndUpdate(req.user._id, 
@@ -333,15 +338,12 @@ const updateAvatar = asyncHandler(async(req, res)=> {
     
     if (!user){
         removeTempFile(avatarFilePath)
-        throw new ApiError(500, `Something went wrong while updating avatar in database`)
+        return res
+        .status(500)
+        .json(new ApiResponse(500, {}, 'Something went wrong. Please try again.'))
     }
 
     await deleteFromCloudinary(oldAvatar, "",  'image')
-
-    // removeTempFile(avatarFilePath)
-    // console.log(deleteAvatar)
-    // File http://res.cloudinary.com/dodnkq5do/image/upload/v1737457068/eu3nihjszqtrwgt92nor.png is removed from cloudinary
-    // { result: 'ok' }
     // need logging if failed to clear from cloudinary with url.
 
     return res
