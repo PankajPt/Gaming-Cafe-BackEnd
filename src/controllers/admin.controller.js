@@ -287,7 +287,7 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
             price,
             paymentQR: {
                 url: cloudiResponse?.secure_url,
-                publicId: public_id
+                publicId: cloudiResponse?.public_id
             }
         }
     )

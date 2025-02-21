@@ -31,6 +31,10 @@ const  options = {
     maxAge: 24 * 60 * 60 * 1000
   }
 
+
+// TODO
+// incase of empty cookies sent FRL
+
 const removeTempFile = async(file) => {
     await file && fs.unlinkSync(file)
 }
