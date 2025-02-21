@@ -275,8 +275,8 @@ const logout = asyncHandler(async(req, res) => {
     await User.updateOne({_id: user._id}, {$unset: {refreshToken: ""}})
         return res
             .status(200)
-            .clearCookie('accessToken', options)
-            .clearCookie('refreshToken', options)
+            .cookie('accessToken', "", options)
+            .cookie('refreshToken', "", options)
             .json(new ApiResponse(200, {}, `${user.username} logged out`))
 })
 
@@ -497,7 +497,7 @@ const updatePasswordWithEmail = asyncHandler(async(req, res)=>{
 
     return res
         .status(200)
-        .clearCookie('shortLiveKey', options)
+        .cookie('shortLiveKey', "", options)
         .send(generateVerificationResponse())
 })
 
