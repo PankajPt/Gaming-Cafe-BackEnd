@@ -20,7 +20,7 @@ const eventSchema = new Schema(
             type: String,
             required: true
         },
-        createdAt: {
+        eventDate: {
             type: Date,
             default: Date.now(),
             index: { expires: '1d'}
@@ -33,7 +33,7 @@ const eventSchema = new Schema(
             type: Number,
             required: true
         }
-    }
+    }, { timestamps: true}
 )
 
 

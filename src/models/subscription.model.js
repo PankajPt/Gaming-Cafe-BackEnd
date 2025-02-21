@@ -3,20 +3,17 @@ import mongoose, { Schema } from "mongoose";
 
 const subscriptionSchema = new Schema(
     {
-        name: {
+        title: {
             type: String,
             required: true,
-            trim: true,
             unique: true,
-            toLowerCase: true
         },
         description: {
             type: String,
             required: true
         },
-        period: {
-            type: String,
-            required: true
+        features: {
+            type: [String]
         },
         price: {
             type: Number,
@@ -35,6 +32,6 @@ const subscriptionSchema = new Schema(
     }, {timestamps: true}
 )
 
-const SubscriptionOptions = mongoose.model('SubscriptionOptions', subscriptionSchema)
+const SubscriptionModels = mongoose.model('SubscriptionModels', subscriptionSchema)
 
-export default SubscriptionOptions
+export default SubscriptionModels
