@@ -4,10 +4,11 @@ import ApiResponse from "../utils/apiResponse.js";
 import Event from "../models/event.model.js"
 import User from "../models/user.model.js";
 import Catalogue from '../models/catalogue.model.js'
-import SubscriptionOptions from '../models/subscription.model.js'
+import SubscriptionModels from '../models/subscription.model.js'
 import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js'
 import {rolePermissions, permissions} from '../config/constants.js'
 import fs from 'fs'
+
 // create new manager
 // drop down menu to select only manager or user
 // need to handle at frontend admin role change option disabled.
@@ -26,7 +27,30 @@ const removeTempFile = async(file) => {
     await file && fs.unlinkSync(file)
 }
 
-const createManager = asyncHandler(async(req, res)=> {
+// view users
+const viewUsers = asyncHandler(async(req, res)=>{
+    const requiredPermission = permissions.VIEW_ALL_USERS
+    const userPermissions = req.user.permissions
+    if (!userPermissions.some((permission) => permission === requiredPermission )){ 
+        // throw new ApiError(403, 'Access denied: The user does not have permission to view this page.')
+        return res
+            .status(403)
+            .json(new ApiResponse(403, {}, 'Access denied: The user does not have permission to view this page.'))
+    }
+    const users = await User.find({ role: {$ne: 'admin'}}).select('-password -permissions -createdAt -updatedAt -__v')
+    if (!users){
+        return res
+            .status(404)
+            .json(new ApiResponse(404, {}, 'User not found'))
+        // throw new ApiError(404, 'No registered users found');
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, users, 'Users fetch successfully'))
+})
+
+const changeUserRole = asyncHandler(async(req, res)=> {
     const requiredPermission = permissions.CHANGE_USER_PERMISSION
     const isAuthorized = verifyUserPermissions(requiredPermission, req.user.permissions)
     if(!isAuthorized){
@@ -34,18 +58,15 @@ const createManager = asyncHandler(async(req, res)=> {
             .status(403)
             .json(new ApiResponse(403, {}, 'Access denied: The user does not have permission to view this page.'))
     }
-    const { username, newRole } = req.body
-    if(!(username && newRole)){
+    const { userId, newRole } = req.body
+    if(!(userId && newRole)){
         // throw new ApiError(400, 'Username cannot be blank');
         return res
             .status(400)
-            .json(new ApiResponse(400, {}, 'Username and role are required.'))
+            .json(new ApiResponse(400, {}, 'userId and role are required.'))
     }
-    const modifiedUsername = username.toLowerCase().trim()
-    const user = await User.findOneAndUpdate(
-        {
-            username: modifiedUsername
-        },
+    // const modifiedUsername = username.toLowerCase().trim()
+    const user = await User.findByIdAndUpdate( userId,
         {
             $set: {
                 role: newRole, 
@@ -66,13 +87,20 @@ const createManager = asyncHandler(async(req, res)=> {
 
     return res
         .status(200)
-        .json(new ApiResponse(200, user, `${user.username} permissions changed to manager`))
+        .json(new ApiResponse(200, user, `${user.username} permissions changed to ${newRole}`))
 })
 
 // add new games
 const addNewGame = asyncHandler(async(req, res)=>{
     const { title, description } = req.body
+    
+    console.log(req.file)
+    // const fileName = req.file?.filename
+    // const imageFilePath = path.join(process.cwd(), 'public', 'temp', fileName)
+    // const imageFilePath = path.resolve(req.file.path)
     const imageFilePath = req.file?.path
+    console.log(`Image file path is: ${imageFilePath}`)
+
     const requiredPermission = permissions.ADD_NEW_GAME
     const isAuthorized = verifyUserPermissions(requiredPermission, req.user.permissions)
     if(!isAuthorized){
@@ -83,17 +111,14 @@ const addNewGame = asyncHandler(async(req, res)=>{
 
     if (!(title && description && imageFilePath)){
         await removeTempFile(imageFilePath)
-        // throw new ApiError(400, 'All fields(title, description, image) are required.')
         return res
             .status(400)
             .json(new ApiResponse(400, {}, 'All fields(title, description, image) are required.'))
     }
 
     const cloudiResponse = await uploadOnCloudinary(imageFilePath, 'image')
-
+    console.log(cloudiResponse)
     if(!cloudiResponse){
-        await removeTempFile(imageFilePath)
-        // throw new ApiError(500, "Something went wrong while uploading game image on cloudinary.")
         return res
         .status(500)
         .json(new ApiResponse(500, {}, 'Something went wrong, please try again.'))
@@ -110,7 +135,7 @@ const addNewGame = asyncHandler(async(req, res)=>{
             owner: req.user._id
         }
     )
-
+    // console.log('game')
     if(!game){
         await deleteFromCloudinary(cloudiResponse.url, cloudiResponse.public_id, 'image')
         // throw new ApiError(500, 'Something went wrong while creating new entry in DB.')
@@ -126,7 +151,6 @@ const addNewGame = asyncHandler(async(req, res)=>{
 })
 
 // delete games
-// need to change user model user controller and delete from cloudinary
 const deleteGame = asyncHandler(async(req, res)=>{
     const { gameId } = req.body
     const requiredPermission = permissions.DELETE_GAME
@@ -153,10 +177,11 @@ const deleteGame = asyncHandler(async(req, res)=>{
     }
 
     await deleteFromCloudinary("", destroyGame.publicId, 'image')
+    const gameCatalogue = await Catalogue.find().select('-owner -createdAt -updatedAt -__v')
 
     return res
         .status(200)
-        .json(new ApiResponse(200, {}, 'Game deleted successfully'))
+        .json(new ApiResponse(200, gameCatalogue, 'Game deleted successfully'))
 
 })
 
@@ -189,7 +214,7 @@ const createEvent = asyncHandler(async(req, res)=>{
                 url: cloudiResponse?.url,
                 publicId: cloudiResponse?.public_id
             },
-            createdAt: date,
+            eventDate: date,
             prizeMoney,
             entryFee
         }
@@ -235,33 +260,30 @@ const deleteEvent = asyncHandler(async(req, res)=>{
 
 
 // create plans
-
 const createSubscriptionPlan = asyncHandler(async(req, res)=>{
     const requiredPermission = permissions.CREATE_SUBSCRIPTION_PLAN
     verifyUserPermissions(requiredPermission, req.user.permissions)
-    const { name, description, period, price } = req.body
+    const { title, description, features, price } = req.body
     const paymentQRPath  = req.file?.path
 
-    if(!(name && description && period && price && paymentQRPath)){
-        // throw new ApiError(400, 'All fields (name, description, period, price) are required.')
+    if(!(features && description && title && price && paymentQRPath)){
         return res
             .status(400)
             .json(new ApiResponse(400, {}, 'All fields (name, description, period, price) are required.'))
     }
 
-    const cloudiResponse = await uploadOnCloudinary(paymentQR, 'image')
+    const cloudiResponse = await uploadOnCloudinary(paymentQRPath, 'image')
     if(!cloudiResponse){
-        // throw new ApiError(500, 'Something went wrong while uploading image on cloudinary.')
         return res
             .status(500)
             .json(new ApiResponse(500, {}, 'Something went wrong, please try again.'))
     }
 
-    const subscriptionData = await SubscriptionOptions.create(
+    const subscriptionData = await SubscriptionModels.create(
         {
-            name,
+            title,
             description,
-            period,
+            features,
             price,
             paymentQR: {
                 url: cloudiResponse?.secure_url,
@@ -272,16 +294,24 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
 
     if(!subscriptionData){
         deleteFromCloudinary(cloudiResponse.url, cloudiResponse.public_id, 'image')
-        // throw new ApiError(500, 'Something went wrong while creating new plan.')
         return res
             .status(500)
             .json(new ApiResponse(500, {}, 'Something went wrong, please try again.'))
     }
 
+    const plainSubscription = subscriptionData.toObject()
+    delete plainSubscription.createdAt
+    delete plainSubscription.updatedAt
+    delete plainSubscription.__v
+
     return res
         .status(201)
-        .json(new ApiResponse(200, subscriptionData, 'New subscription plan created.'))
+        .json(new ApiResponse(200, plainSubscription, 'New subscription plan created.'))
 })
 
-export { createManager, addNewGame, deleteGame, createEvent,
-    deleteEvent, createSubscriptionPlan, }
+const deleteSubscriptionPlan = asyncHandler(async(req, res)=> {
+    
+})
+
+export { changeUserRole, addNewGame, deleteGame, createEvent,
+    deleteEvent, createSubscriptionPlan, viewUsers, deleteSubscriptionPlan }

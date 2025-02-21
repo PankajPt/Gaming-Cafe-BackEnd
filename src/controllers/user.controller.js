@@ -7,6 +7,7 @@ import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js
 import User from '../models/user.model.js'
 import Event from '../models/event.model.js'
 import Catalogue from '../models/catalogue.model.js'
+import SubscriptionModels from '../models/subscription.model.js'
 import jwt from 'jsonwebtoken'
 import { sendVerificationLink, verifyEmailToken } from '../utils/emailServices.js'
 import { generateVerificationResponse, tokenExpiredResponse, submitPasswordForm } from '../templates/index.template.js'
@@ -131,17 +132,18 @@ const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
         user.refreshToken = refreshToken
         await user.save()
     
-        const plainUser = user.toObject()
-        delete plainUser.refreshToken
-        delete plainUser.password
-        delete plainUser.createdAt
-        delete plainUser.updatedAt
+        // const plainUser = user.toObject()
+        // delete plainUser.refreshToken
+        // delete plainUser.password
+        // delete plainUser.createdAt
+        // delete plainUser.updatedAt
+        // delete plainUser.permissions
         
         return res
             .status(200)
             .cookie('accessToken', accessToken, options)
             .cookie('refreshToken', refreshToken, options)
-            .json(new ApiResponse(200, plainUser, 'Tokens refreshed.'))
+            .json(new ApiResponse(200, {}, 'Tokens refreshed.'))
 
     } catch (error) {
         console.log(error)
@@ -208,17 +210,16 @@ const registerUser = asyncHandler( async (req, res) => {
     if(!mailStatus){
         console.log('Something went wrong while sending mail')
     }
-    const plainUser = user.toObject();
-    plainUser.mailStatus = mailStatus
-    delete plainUser.password
-    delete plainUser.refreshToken
-
-    // await removeTempFile(avatarFilePath)
+    // const plainUser = user.toObject();
+    // plainUser.mailStatus = mailStatus
+    // delete plainUser.password
+    // delete plainUser.refreshToken
+    // TODO
     // at frontend check user.mailStatus to check status of verification mail sent to user
-    // add symbol or function to display verified user.
+    // add symbol or function to display verified user.(Done)
     return res
         .status(201)
-        .json(new ApiResponse(201, plainUser, `User registered successfully`))
+        .json(new ApiResponse(201, {}, `User registered successfully`))
 })
 
 const loginUser = asyncHandler( async (req, res) => {
@@ -252,17 +253,15 @@ const loginUser = asyncHandler( async (req, res) => {
         await user.save()
     }
 
-    // for inactive user send verification link
-    // if ( user.isActiveUser === 'inactive' ){
-    //     verificationLink(user.email)
-    // }
-
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
     
     const plainUser = user.toObject()
     delete plainUser.refreshToken
     delete plainUser.password
-    // plainUser.accessToken = accessToken
+    delete plainUser.createdAt
+    delete plainUser.updatedAt
+    delete plainUser.__v
+    delete plainUser.permissions
 
     return res
         .status(200)
@@ -276,8 +275,8 @@ const logout = asyncHandler(async(req, res) => {
     await User.updateOne({_id: user._id}, {$unset: {refreshToken: ""}})
         return res
             .status(200)
-            .cookie('accessToken', '', options)
-            .cookie('refreshToken', '', options)
+            .clearCookie('accessToken', options)
+            .clearCookie('refreshToken', options)
             .json(new ApiResponse(200, {}, `${user.username} logged out`))
 })
 
@@ -345,10 +344,17 @@ const updateAvatar = asyncHandler(async(req, res)=> {
 
     await deleteFromCloudinary(oldAvatar, "",  'image')
     // need logging if failed to clear from cloudinary with url.
+    const plainUser = user.toObject()
+    delete plainUser.refreshToken
+    delete plainUser.password
+    delete plainUser.createdAt
+    delete plainUser.updatedAt
+    delete plainUser.__v
+    delete plainUser.permissions
 
     return res
         .status(200)
-        .json(new ApiResponse(200, user, 'Avatar updated successfully'))
+        .json(new ApiResponse(200, plainUser, 'Avatar updated successfully'))
 })
 
 // forgot password through login-jwt-verify
@@ -358,14 +364,12 @@ const updatePasswordWithJWT = asyncHandler(async(req, res)=>{
         return res
         .status(400)
         .json(new ApiResponse(401, {}, 'All fields(current password, new password, confirm password) are required.'))
-        // throw new ApiError(400, 'All fields(current password, new password, confirm password) are required.')
     }
 
     if ( newPassword !== confirm ){
         return res
         .status(400)
         .json(new ApiResponse(400, {}, 'New and cofirm password not match'))
-        // throw new ApiError(400, 'New and cofirm password not match')
     }
     const user = await User.findById(req.user._id)
     const validUser = await user.isValidPassword(current)
@@ -373,7 +377,6 @@ const updatePasswordWithJWT = asyncHandler(async(req, res)=>{
         return res
             .status(401)
             .json(new ApiResponse(401, {}, 'Invalid current password'))
-        // throw new ApiError(401, 'Invalid current password')
     }
 
     user.password = newPassword
@@ -383,13 +386,16 @@ const updatePasswordWithJWT = asyncHandler(async(req, res)=>{
         return res
             .status(500)
             .json(new ApiResponse(500, {}, 'Something went wrong while updating password. Please try again'))
-        // throw new ApiError(500, 'Something went wrong while updatin password in DB.')
     }
 
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
     const plainUser = user.toObject()
-    delete plainUser.password
     delete plainUser.refreshToken
+    delete plainUser.password
+    delete plainUser.createdAt
+    delete plainUser.updatedAt
+    delete plainUser.__v
+    delete plainUser.permissions
 
     return res
         .status(200)
@@ -491,32 +497,11 @@ const updatePasswordWithEmail = asyncHandler(async(req, res)=>{
 
     return res
         .status(200)
-        .cookie('shortLiveKey', "", options)
+        .clearCookie('shortLiveKey', options)
         .send(generateVerificationResponse())
 })
 
-// view users
-const viewUsers = asyncHandler(async(req, res)=>{
-    const requiredPermission = permissions.VIEW_ALL_USERS
-    const userPermissions = req.user.permissions
-    if (!userPermissions.some((permission) => permission === requiredPermission )){ 
-        // throw new ApiError(403, 'Access denied: The user does not have permission to view this page.')
-        return res
-            .status(403)
-            .json(new ApiResponse(403, {}, 'Access denied: The user does not have permission to view this page.'))
-    }
-    const users = await User.find()
-    if (!users){
-        return res
-            .status(404)
-            .json(new ApiResponse(404, {}, 'User not found'))
-        // throw new ApiError(404, 'No registered users found');
-    }
 
-    return res
-        .status(200)
-        .json(new ApiResponse(200, users, 'Users fetch successfully'))
-})
 
 const getEvents = asyncHandler(async(_, res)=>{
     const events = await Event.find()
@@ -527,24 +512,41 @@ const getEvents = asyncHandler(async(_, res)=>{
             .json(new ApiResponse(500, {}, 'Something went wrong, please try again'))
     }
 
+    const plainEvents = events.toObject()
+    delete plainEvents.createdAt
+    delete plainEvents.updatedAt
+    delete plainEvents.__v
+
     return res
         .status(200)
-        .json(new ApiResponse(200, events, 'Events fetched successfully'))
+        .json(new ApiResponse(200, plainEvents, 'Events fetched successfully'))
 })
 
 const getCatalogue = asyncHandler(async(_, res)=>{
-    const gameCatalogue = await Catalogue.find().select('-owner')
+    const gameCatalogue = await Catalogue.find().select('-owner -createdAt -updatedAt -__v')
     if(!gameCatalogue){
-        // throw new ApiError(500, 'Something went wrong while fetching data from DB.')
         return res 
         .status(500)
         .json(new ApiResponse(500, {}, 'Something went wrong, please try again'))
-
     }
 
     return res
         .status(200)
         .json(new ApiResponse(200, gameCatalogue, 'Game catalogue fetched successfully.'))
+})
+
+
+const getPlans = asyncHandler ( async( _, res ) => {
+    const plans = await SubscriptionModels.find().select('-createdAt -updatedAt -__v')
+    if(!plans){
+        return res 
+        .status(500)
+        .json(new ApiResponse(500, {}, 'Something went wrong, please try again'))
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, plans, 'Subscription details fetched successfully.'))
 })
 
 export {
@@ -553,7 +555,6 @@ export {
     logout,
     userActivation,
     updateAvatar,
-    viewUsers,
     updatePasswordWithJWT,
     sendPasswordResetOnMail,
     sendPasswordSubmitForm,
@@ -562,5 +563,6 @@ export {
     getEvents,
     getCatalogue,
     renewAccessAndRefreshToken,
+    getPlans,
 
 }
