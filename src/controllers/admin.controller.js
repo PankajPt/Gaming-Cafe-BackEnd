@@ -13,15 +13,20 @@ import fs from 'fs'
 // drop down menu to select only manager or user
 // need to handle at frontend admin role change option disabled.
 // if user then option to change role to manager and vice versa
+// TODO: need handling for duplicate check 
+// MongoServerError: E11000 duplicate key error collection: MADGEAR.catalogues index: title_1 dup key: { title: "Black Myth" }
 
-// requiredPermission - pass eval value, userPermissions - pass array
-const verifyUserPermissions = (requiredPermission, userPermissions) => {
-    if (!userPermissions.some((permission) => permission === requiredPermission)){
-        // throw new ApiError(403, 'Access denied: The user does not have permission to view this page.')
-        return false
+
+const verifyUserPermissions = (permissionData, res) => {
+    const { userPermissions, requiredPermission } = permissionData;
+
+    if (!userPermissions.includes(requiredPermission)) {
+        res.status(403).json(new ApiError(403, 'Access denied: The user does not have permission to view this page.'));
+        return false;
     }
-    return true
-}
+    return true;
+};
+
 
 const removeTempFile = async(file) => {
     await file && fs.unlinkSync(file)
@@ -29,14 +34,16 @@ const removeTempFile = async(file) => {
 
 // view users
 const viewUsers = asyncHandler(async(req, res)=>{
-    const requiredPermission = permissions.VIEW_ALL_USERS
-    const userPermissions = req.user.permissions
-    if (!userPermissions.some((permission) => permission === requiredPermission )){ 
-        // throw new ApiError(403, 'Access denied: The user does not have permission to view this page.')
-        return res
-            .status(403)
-            .json(new ApiResponse(403, {}, 'Access denied: The user does not have permission to view this page.'))
+
+    const permissionData = {
+        requiredPermission: permissions.VIEW_ALL_USERS,
+        userPermissions: req.user.permissions
     }
+    const isVerified = verifyUserPermissions(permissionData, res)
+    if (!isVerified){
+        return
+    }
+
     const users = await User.find({ role: {$ne: 'admin'}}).select('-password -permissions -createdAt -updatedAt -__v')
     if (!users){
         return res
@@ -51,12 +58,13 @@ const viewUsers = asyncHandler(async(req, res)=>{
 })
 
 const changeUserRole = asyncHandler(async(req, res)=> {
-    const requiredPermission = permissions.CHANGE_USER_PERMISSION
-    const isAuthorized = verifyUserPermissions(requiredPermission, req.user.permissions)
-    if(!isAuthorized){
-        return res
-            .status(403)
-            .json(new ApiResponse(403, {}, 'Access denied: The user does not have permission to view this page.'))
+    const permissionData = {
+        requiredPermission: permissions.CHANGE_USER_PERMISSION,
+        userPermissions: req.user.permissions
+    }
+    const isVerified = verifyUserPermissions(permissionData, res)
+    if (!isVerified){
+        return
     }
     const { userId, newRole } = req.body
     if(!(userId && newRole)){
@@ -101,12 +109,13 @@ const addNewGame = asyncHandler(async(req, res)=>{
     const imageFilePath = req.file?.path
     console.log(`Image file path is: ${imageFilePath}`)
 
-    const requiredPermission = permissions.ADD_NEW_GAME
-    const isAuthorized = verifyUserPermissions(requiredPermission, req.user.permissions)
-    if(!isAuthorized){
-        return res
-            .status(403)
-            .json(new ApiResponse(403, {}, 'Access denied: The user does not have permission to view this page.'))
+    const permissionData = {
+        requiredPermission: permissions.ADD_NEW_GAME,
+        userPermissions: req.user.permissions
+    }
+    const isVerified = verifyUserPermissions(permissionData, res)
+    if (!isVerified){
+        return
     }
 
     if (!(title && description && imageFilePath)){
@@ -153,12 +162,13 @@ const addNewGame = asyncHandler(async(req, res)=>{
 // delete games
 const deleteGame = asyncHandler(async(req, res)=>{
     const { gameId } = req.body
-    const requiredPermission = permissions.DELETE_GAME
-    const isAuthorized = verifyUserPermissions(requiredPermission, req.user.permissions)
-    if(!isAuthorized){
-        return res
-            .status(403)
-            .json(new ApiResponse(403, {}, 'Access denied: The user does not have permission to view this page.'))
+    const permissionData = {
+        requiredPermission: permissions.DELETE_GAME,
+        userPermissions: req.user.permissions
+    }
+    const isVerified = verifyUserPermissions(permissionData, res)
+    if (!isVerified){
+        return
     }
     if(!gameId){
         // throw new ApiError(400, 'Game id is required to perform this operation')
@@ -187,15 +197,18 @@ const deleteGame = asyncHandler(async(req, res)=>{
 
 // create new events
 const createEvent = asyncHandler(async(req, res)=>{
+
+    const permissionData = {
+        requiredPermission: permissions.CREATE_EVENT,
+        userPermissions: req.user.permissions
+    }
+    const isVerified = verifyUserPermissions(permissionData, res)
+    if (!isVerified){
+        return
+    }
+
     const { title, description, date, prizeMoney, entryFee } = req.body
     const imageFilePath = req.file?.path
-    const requiredPermission = permissions.CREATE_EVENT
-    const isAuthorized = verifyUserPermissions(requiredPermission, req.user.permissions)
-    if(!isAuthorized){
-        return res
-            .status(403)
-            .json(new ApiResponse(403, {}, 'Access denied: The user does not have permission to view this page.'))
-    }
 
     if (!(title && description && imageFilePath && prizeMoney && entryFee)){
         await removeTempFile(imageFilePath)
@@ -237,16 +250,27 @@ const createEvent = asyncHandler(async(req, res)=>{
 
 // delete event
 const deleteEvent = asyncHandler(async(req, res)=>{
-    const { eventId } = req.body
-    const requiredPermission = permissions.DELETE_EVENT
-    verifyUserPermissions(requiredPermission, req.user.permissions)
-
-    if(!eventId){
-        throw new ApiError(400, 'Event id required to perform this operation.')
+    const permissionData = {
+        requiredPermission: permissions.DELETE_EVENT,
+        userPermissions: req.user.permissions
     }
-    const destroy = await Event.findOneAndDelete({_id: eventId}).select('thumbnail')
+    const isVerified = verifyUserPermissions(permissionData, res)
+    if (!isVerified){
+        return
+    }
+
+    const { planId } = req.params
+
+    if(!planId){
+        return res
+        .status(400)
+        .json(new ApiError(400, 'Event id required to perform this operation.'))
+    }
+    const destroy = await Event.findOneAndDelete({_id: planId}).select('thumbnail')
     if(!destroy){
-        throw new ApiError(404, 'Event not found.')
+        return res
+        .status(404)
+        .json(new ApiError(404, 'Event not found.'))
     }
 
     await deleteFromCloudinary(destroy.thumbnail.url, destroy.thumbnail.publicId, 'image')
@@ -261,22 +285,29 @@ const deleteEvent = asyncHandler(async(req, res)=>{
 
 // create plans
 const createSubscriptionPlan = asyncHandler(async(req, res)=>{
-    const requiredPermission = permissions.CREATE_SUBSCRIPTION_PLAN
-    verifyUserPermissions(requiredPermission, req.user.permissions)
+    const permissionData = {
+        requiredPermission: permissions.CREATE_SUBSCRIPTION_PLAN,
+        userPermissions: req.user.permissions
+    }
+    const isVerified = verifyUserPermissions(permissionData, res)
+    if (!isVerified){
+        return
+    }
+
     const { title, description, features, price } = req.body
     const paymentQRPath  = req.file?.path
 
     if(!(features && description && title && price && paymentQRPath)){
         return res
             .status(400)
-            .json(new ApiResponse(400, {}, 'All fields (name, description, period, price) are required.'))
+            .json(new ApiError(400, 'All fields (name, description, period, price) are required.'))
     }
 
     const cloudiResponse = await uploadOnCloudinary(paymentQRPath, 'image')
     if(!cloudiResponse){
         return res
             .status(500)
-            .json(new ApiResponse(500, {}, 'Something went wrong, please try again.'))
+            .json(new ApiError(500, 'Something went wrong, please try again.'))
     }
 
     const subscriptionData = await SubscriptionModels.create(
@@ -296,7 +327,7 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
         deleteFromCloudinary(cloudiResponse.url, cloudiResponse.public_id, 'image')
         return res
             .status(500)
-            .json(new ApiResponse(500, {}, 'Something went wrong, please try again.'))
+            .json(new ApiError(500, 'Something went wrong, please try again.'))
     }
 
     const plainSubscription = subscriptionData.toObject()
@@ -310,7 +341,14 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
 })
 
 const deleteSubscriptionPlan = asyncHandler(async(req, res)=> {
-    
+        const permissionData = {
+        requiredPermission: permissions.DELETE_SUBSCRIPTION_PLAN,
+        userPermissions: req.user.permissions
+    }
+    const isVerified = verifyUserPermissions(permissionData, res)
+    if (!isVerified){
+        return
+    }
 })
 
 export { changeUserRole, addNewGame, deleteGame, createEvent,
