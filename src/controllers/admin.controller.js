@@ -290,18 +290,15 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
         requiredPermission: permissions.CREATE_SUBSCRIPTION_PLAN,
         userPermissions: req.user.permissions
     }
+
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
         return
     }
 
     const { title, description, features, price } = req.body
-    
-    const featureArr = features
-                            ?.split(",")
-                            .map((item) => item.trim())
-                            .filter((item) => item !== "")
-    console.log(featureArr)
+
+
     const paymentQRPath  = req.file?.path
 
     if(!(features && description && title && price && paymentQRPath)){
@@ -309,6 +306,11 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
             .status(400)
             .json(new ApiError(400, 'All fields (name, description, period, price) are required.'))
     }
+
+    const featureArr = features
+                            ?.split(",")
+                            .map((item) => item.trim())
+                            .filter((item) => item !== "")
 
     const cloudiResponse = await uploadOnCloudinary(paymentQRPath, 'image')
     if(!cloudiResponse){
@@ -321,7 +323,7 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
         {
             title,
             description,
-            features,
+            features: featureArr,
             price,
             paymentQR: {
                 url: cloudiResponse?.secure_url,
