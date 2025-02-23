@@ -508,22 +508,16 @@ const updatePasswordWithEmail = asyncHandler(async(req, res)=>{
 
 
 const getEvents = asyncHandler(async(_, res)=>{
-    const events = await Event.find()
+    const events = await Event.find().select("-createdAt -updatedAt -__v");
     if(!events){
-        // throw new ApiError(500, 'Something went wrong while fetching data from DB.')
         return res 
             .status(500)
-            .json(new ApiResponse(500, {}, 'Something went wrong, please try again'))
+            .json(new ApiError(500, 'Something went wrong, please try again'))
     }
-
-    const plainEvents = events.toObject()
-    delete plainEvents.createdAt
-    delete plainEvents.updatedAt
-    delete plainEvents.__v
 
     return res
         .status(200)
-        .json(new ApiResponse(200, plainEvents, 'Events fetched successfully'))
+        .json(new ApiResponse(200, events, 'Events fetched successfully'))
 })
 
 const getCatalogue = asyncHandler(async(_, res)=>{

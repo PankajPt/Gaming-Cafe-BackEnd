@@ -101,13 +101,10 @@ const changeUserRole = asyncHandler(async(req, res)=> {
 // add new games
 const addNewGame = asyncHandler(async(req, res)=>{
     const { title, description } = req.body
-    
-    console.log(req.file)
     // const fileName = req.file?.filename
     // const imageFilePath = path.join(process.cwd(), 'public', 'temp', fileName)
     // const imageFilePath = path.resolve(req.file.path)
     const imageFilePath = req.file?.path
-    console.log(`Image file path is: ${imageFilePath}`)
 
     const permissionData = {
         requiredPermission: permissions.ADD_NEW_GAME,
@@ -126,7 +123,6 @@ const addNewGame = asyncHandler(async(req, res)=>{
     }
 
     const cloudiResponse = await uploadOnCloudinary(imageFilePath, 'image')
-    console.log(cloudiResponse)
     if(!cloudiResponse){
         return res
         .status(500)
@@ -144,10 +140,8 @@ const addNewGame = asyncHandler(async(req, res)=>{
             owner: req.user._id
         }
     )
-    // console.log('game')
     if(!game){
         await deleteFromCloudinary(cloudiResponse.url, cloudiResponse.public_id, 'image')
-        // throw new ApiError(500, 'Something went wrong while creating new entry in DB.')
         return res
         .status(500)
         .json(new ApiResponse(500, {}, 'Something went wrong, please try again.'))
