@@ -317,7 +317,7 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
             .json(new ApiError(500, 'Something went wrong, please try again.'))
     }
 
-    const subscriptionData = await SubscriptionModels.create(
+    const newPlan = await SubscriptionModels.create(
         {
             title,
             description,
@@ -330,14 +330,14 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
         }
     )
 
-    if(!subscriptionData){
+    if(!newPlan){
         deleteFromCloudinary(cloudiResponse.url, cloudiResponse.public_id, 'image')
         return res
             .status(500)
             .json(new ApiError(500, 'Something went wrong, please try again.'))
     }
 
-    const plainSubscription = subscriptionData.toObject()
+    const plainSubscription = newPlan.toObject()
     delete plainSubscription.createdAt
     delete plainSubscription.updatedAt
     delete plainSubscription.__v
@@ -356,6 +356,32 @@ const deleteSubscriptionPlan = asyncHandler(async(req, res)=> {
     if (!isVerified){
         return
     }
+
+    const { planId } = req.params
+    
+    if(!planId){
+        return res
+            .status(400)
+            .json(new ApiError(400, 'Id required to delete subscription plan.'))
+    }
+
+    const destroy = await SubscriptionModels.findOneAndDelete({_id: planId})
+
+    if(!destroy){
+        return res
+            .status(404)
+            .json(new ApiError(404, 'Plan not found. Please refresh session.'))
+    }
+
+    const deleteImage = await deleteFromCloudinary(destroy.paymentQR.url, destroy.paymentQR.publicId, 'image')
+    if(!deleteImage){
+        // log the public id and url 
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, destroy, `${destroy.title} has deleted successfully.`))
+
 })
 
 export { changeUserRole, addNewGame, deleteGame, createEvent,
