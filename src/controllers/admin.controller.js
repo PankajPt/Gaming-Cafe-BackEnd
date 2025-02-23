@@ -285,6 +285,7 @@ const deleteEvent = asyncHandler(async(req, res)=>{
 
 // create plans
 const createSubscriptionPlan = asyncHandler(async(req, res)=>{
+
     const permissionData = {
         requiredPermission: permissions.CREATE_SUBSCRIPTION_PLAN,
         userPermissions: req.user.permissions
@@ -295,6 +296,12 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
     }
 
     const { title, description, features, price } = req.body
+    
+    const featureArr = features
+                            ?.split(",")
+                            .map((item) => item.trim())
+                            .filter((item) => item !== "")
+    console.log(featureArr)
     const paymentQRPath  = req.file?.path
 
     if(!(features && description && title && price && paymentQRPath)){
