@@ -5,16 +5,11 @@ import Event from "../models/event.model.js"
 import User from "../models/user.model.js";
 import Catalogue from '../models/catalogue.model.js'
 import SubscriptionModels from '../models/subscription.model.js'
+import Slot from "../models/slot.model.js";
+import Booking from "../models/booking.model.js";
 import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js'
 import {rolePermissions, permissions} from '../config/constants.js'
 import fs from 'fs'
-
-// create new manager
-// drop down menu to select only manager or user
-// need to handle at frontend admin role change option disabled.
-// if user then option to change role to manager and vice versa
-// TODO: need handling for duplicate check 
-// MongoServerError: E11000 duplicate key error collection: MADGEAR.catalogues index: title_1 dup key: { title: "Black Myth" }
 
 
 const verifyUserPermissions = (permissionData, res) => {
@@ -275,7 +270,107 @@ const deleteEvent = asyncHandler(async(req, res)=>{
 
 })
 // arrange slots
+// Create slots - Date Range[(yyyy-mm-dd),(yyyy-mm-dd)], Time Range[all time slots]
+const createSlot = asyncHandler(async(req, res) => {
+    const permissionData = {
+        requiredPermission: permissions.ADD_SLOT,
+        userPermissions: req.user.permissions
+    }
 
+    const isVerified = verifyUserPermissions(permissionData, res)
+    if (!isVerified){
+        return
+    }
+
+    const { dateRange, timeRange } = req.body
+    if (!dateRange?.length || !timeRange?.length ){
+        return res
+            .status(400)
+            .json(new ApiError(400, 'All fields(dateRange[], timeRange[]) are required.'))
+    }
+    const slotsToCreate = []
+    
+    for (let date of dateRange){
+        for (let timeFrame of timeRange){
+            slotsToCreate.push(
+                {
+                    date,
+                    timeFrame
+                }
+            )
+        }
+    }
+    const createdSlots = await Slot.insertMany(slotsToCreate)
+    if(!createSlot){
+        return res
+            .status(500)
+            .json(new ApiError(500, 'Something went wrong while uploading data, please try again.'))
+    }
+    return res
+        .json(new ApiResponse(201, createdSlots, 'Slots created successfully.'))
+        .status(201)
+})
+
+// Delete Slots - Slot id
+const deleteSlotById = asyncHandler(async(req, res) => {
+    const permissionData = {
+        requiredPermission: permissions.DELETE_SLOT,
+        userPermissions: req.user.permissions
+    }
+
+    const isVerified = verifyUserPermissions(permissionData, res)
+    if (!isVerified){
+        return
+    }
+
+    const { slotId } = req.params
+    if(!slotId){
+        return res
+            .status(400)
+            .json(new ApiError(400, 'Slot id is required.'))
+    }
+    const destroy = await Slot.findOneAndDelete({_id: slotId})
+    if(!destroy){
+        return res
+            .status(404)
+            .json(new ApiError(404, 'Slot not found. Refresh the page.'))
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, destroy, `${destroy.timeFrame} is deleted successfully.`))
+
+})
+
+const deleteSlotsByDate = asyncHandler(async(req, res)=>{
+    const permissionData = {
+        requiredPermission: permissions.DELETE_SLOT,
+        userPermissions: req.user.permissions
+    }
+
+    const isVerified = verifyUserPermissions(permissionData, res)
+    if (!isVerified){
+        return
+    }
+
+    const { date } = req.query
+
+    if(!date){
+        return res
+            .status(400)
+            .json(new ApiError(400, 'Date is required(yyyy-mm-dd).'))
+    }
+    const destroy = await Slot.deleteMany({date})
+    if(!destroy){
+        return res
+            .status(404)
+            .json(new ApiError(404, 'Slot not found. Refresh the page.'))
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, destroy, `Slots deleted for ${date}`))        
+})
 
 // create plans
 const createSubscriptionPlan = asyncHandler(async(req, res)=>{
@@ -381,4 +476,5 @@ const deleteSubscriptionPlan = asyncHandler(async(req, res)=> {
 })
 
 export { changeUserRole, addNewGame, deleteGame, createEvent,
-    deleteEvent, createSubscriptionPlan, viewUsers, deleteSubscriptionPlan }
+    deleteEvent, createSubscriptionPlan, viewUsers, deleteSubscriptionPlan,
+    createSlot, deleteSlotById, deleteSlotsByDate }

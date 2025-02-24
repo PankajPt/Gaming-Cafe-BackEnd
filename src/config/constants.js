@@ -16,7 +16,9 @@ const permissions = {
     DELETE_EVENT: 'delete_event',
     CHANGE_USER_PERMISSION: 'change_user_permission',
     CREATE_SUBSCRIPTION_PLAN: 'create_subscription_plan',
-    DELETE_SUBSCRIPTION_PLAN: 'delete_subscription_plan'
+    DELETE_SUBSCRIPTION_PLAN: 'delete_subscription_plan',
+    ADD_SLOT: 'add_slot',
+    DELETE_SLOT: 'delete_slot'
 }
 const rolePermissions = {
     user: [],
@@ -31,7 +33,9 @@ const rolePermissions = {
         permissions.DELETE_EVENT,
         permissions.CHANGE_USER_PERMISSION,
         permissions.CREATE_SUBSCRIPTION_PLAN,
-        permissions.DELETE_SUBSCRIPTION_PLAN
+        permissions.DELETE_SUBSCRIPTION_PLAN,
+        permissions.ADD_SLOT,
+        permissions.DELETE_SLOT
     ]
 }
 
