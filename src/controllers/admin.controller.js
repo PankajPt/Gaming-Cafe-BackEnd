@@ -439,9 +439,9 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
 })
 
 const deleteSubscriptionPlan = asyncHandler(async(req, res)=> {
-        const permissionData = {
-        requiredPermission: permissions.DELETE_SUBSCRIPTION_PLAN,
-        userPermissions: req.user.permissions
+    const permissionData = {
+    requiredPermission: permissions.DELETE_SUBSCRIPTION_PLAN,
+    userPermissions: req.user.permissions
     }
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
@@ -475,6 +475,71 @@ const deleteSubscriptionPlan = asyncHandler(async(req, res)=> {
 
 })
 
+const getAllBookedSlots = asyncHandler(async(req, res)=>{
+    const permissionData = {
+        requiredPermission: permissions.VIEW_BOOKINGS,
+        userPermissions: req.user.permissions
+    }
+    const isVerified = verifyUserPermissions(permissionData, res)
+    if (!isVerified){
+        return
+    }
+
+    const bookings = await Booking.aggregate([
+        {
+            $lookup: {
+                from: 'slots',
+                localField: 'slotId',
+                foreignField: '_id',
+                as: 'slotDetails'
+            }
+        },
+        {
+            $lookup: {
+                from: 'users',
+                localField: 'userId',
+                foreignField: '_id',
+                as: 'userDetails'
+            }
+        },
+        {
+            $unwind: {
+                path: '$slotDetails',
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $unwind: {
+                path: '$userDetails',
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $project: {
+                _id: 1,
+                slotId: 1,
+                userId: 1,
+                date: '$slotDetails.date',
+                timeFrame: '$slotDetails.timeFrame',
+                username: '$userDetails.username',
+                fullname: '$userDetails.fullname',
+                email: '$userDetails.email'
+            }
+        }
+    ])
+
+    if(!bookings.length || !bookings){
+        return res
+            .status(404)
+            .json(new ApiError(404, 'No bookings found.'))
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, bookings, 'Bookings fetched.'))
+
+})
+
 export { changeUserRole, addNewGame, deleteGame, createEvent,
     deleteEvent, createSubscriptionPlan, viewUsers, deleteSubscriptionPlan,
-    createSlot, deleteSlotById, deleteSlotsByDate }
+    createSlot, deleteSlotById, deleteSlotsByDate, getAllBookedSlots }
