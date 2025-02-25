@@ -22,7 +22,6 @@ const verifyUserPermissions = (permissionData, res) => {
     return true;
 };
 
-
 const removeTempFile = async(file) => {
     await file && fs.unlinkSync(file)
 }
@@ -236,7 +235,6 @@ const createEvent = asyncHandler(async(req, res)=>{
     
 })
 
-
 // delete event
 const deleteEvent = asyncHandler(async(req, res)=>{
     const permissionData = {
@@ -269,6 +267,7 @@ const deleteEvent = asyncHandler(async(req, res)=>{
         .json(new ApiResponse(200, {}, 'Event deleted successfully.'))
 
 })
+
 // arrange slots
 // Create slots - Date Range[(yyyy-mm-dd),(yyyy-mm-dd)], Time Range[all time slots]
 const createSlot = asyncHandler(async(req, res) => {
@@ -309,6 +308,71 @@ const createSlot = asyncHandler(async(req, res) => {
     return res
         .json(new ApiResponse(201, createdSlots, 'Slots created successfully.'))
         .status(201)
+})
+
+const getAllBookedSlots = asyncHandler(async(req, res)=>{
+    const permissionData = {
+        requiredPermission: permissions.VIEW_BOOKINGS,
+        userPermissions: req.user.permissions
+    }
+    const isVerified = verifyUserPermissions(permissionData, res)
+    if (!isVerified){
+        return
+    }
+
+    const bookings = await Booking.aggregate([
+        {
+            $lookup: {
+                from: 'slots',
+                localField: 'slotId',
+                foreignField: '_id',
+                as: 'slotDetails'
+            }
+        },
+        {
+            $lookup: {
+                from: 'users',
+                localField: 'userId',
+                foreignField: '_id',
+                as: 'userDetails'
+            }
+        },
+        {
+            $unwind: {
+                path: '$slotDetails',
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $unwind: {
+                path: '$userDetails',
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $project: {
+                _id: 1,
+                slotId: 1,
+                userId: 1,
+                date: '$slotDetails.date',
+                timeFrame: '$slotDetails.timeFrame',
+                username: '$userDetails.username',
+                fullname: '$userDetails.fullname',
+                email: '$userDetails.email'
+            }
+        }
+    ])
+
+    if(!bookings.length || !bookings){
+        return res
+            .status(404)
+            .json(new ApiError(404, 'No bookings found.'))
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, bookings, 'Bookings fetched.'))
+
 })
 
 // Delete Slots - Slot id
@@ -475,71 +539,7 @@ const deleteSubscriptionPlan = asyncHandler(async(req, res)=> {
 
 })
 
-const getAllBookedSlots = asyncHandler(async(req, res)=>{
-    const permissionData = {
-        requiredPermission: permissions.VIEW_BOOKINGS,
-        userPermissions: req.user.permissions
-    }
-    const isVerified = verifyUserPermissions(permissionData, res)
-    if (!isVerified){
-        return
-    }
-
-    const bookings = await Booking.aggregate([
-        {
-            $lookup: {
-                from: 'slots',
-                localField: 'slotId',
-                foreignField: '_id',
-                as: 'slotDetails'
-            }
-        },
-        {
-            $lookup: {
-                from: 'users',
-                localField: 'userId',
-                foreignField: '_id',
-                as: 'userDetails'
-            }
-        },
-        {
-            $unwind: {
-                path: '$slotDetails',
-                preserveNullAndEmptyArrays: true
-            }
-        },
-        {
-            $unwind: {
-                path: '$userDetails',
-                preserveNullAndEmptyArrays: true
-            }
-        },
-        {
-            $project: {
-                _id: 1,
-                slotId: 1,
-                userId: 1,
-                date: '$slotDetails.date',
-                timeFrame: '$slotDetails.timeFrame',
-                username: '$userDetails.username',
-                fullname: '$userDetails.fullname',
-                email: '$userDetails.email'
-            }
-        }
-    ])
-
-    if(!bookings.length || !bookings){
-        return res
-            .status(404)
-            .json(new ApiError(404, 'No bookings found.'))
-    }
-
-    return res
-        .status(200)
-        .json(new ApiResponse(200, bookings, 'Bookings fetched.'))
-
-})
-
-export { changeUserRole, addNewGame, deleteGame, createEvent,
-    deleteEvent, createSubscriptionPlan, viewUsers, deleteSubscriptionPlan,
-    createSlot, deleteSlotById, deleteSlotsByDate, getAllBookedSlots }
+export { changeUserRole, addNewGame, deleteGame, 
+    createEvent, deleteEvent, createSubscriptionPlan, 
+    viewUsers, deleteSubscriptionPlan, createSlot, 
+    deleteSlotById, deleteSlotsByDate, getAllBookedSlots }
