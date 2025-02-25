@@ -198,9 +198,8 @@ const createEvent = asyncHandler(async(req, res)=>{
     const { title, description, date, prizeMoney, entryFee } = req.body
     const imageFilePath = req.file?.path
 
-    if (!(title && description && imageFilePath && prizeMoney && entryFee)){
+    if (!title || !description || !imageFilePath || !prizeMoney || !entryFee){
         await removeTempFile(imageFilePath)
-        // throw new ApiError(400, 'All fields (title, description, image, prizeMoney, entryFee) are required')
         return res
             .status(400)
             .json(new ApiResponse(400, {}, 'All fields (title, description, image, prizeMoney, entryFee) are required'))

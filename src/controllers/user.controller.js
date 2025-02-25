@@ -662,6 +662,39 @@ const deleteBookedSlot = asyncHandler(async(req, res)=>{
         .json(new ApiResponse(200, {}, `Booking cancelled.`))
 })
 
+const getAvailableSlots = asyncHandler(async(req, res)=>{
+    const availableSlots = await Slot.aggregate([
+        {
+            $lookup: {
+                from: 'bookings',
+                localField: '_id',
+                foreignField: 'slotId',
+                as: 'bookings'
+            }
+        },
+        {
+            $project: {
+                _id: 1,
+                date: 1,
+                timeFrame: 1,
+                availableSlots: {
+                    $subtract: ['$maxBookings', { $size: '$bookings'}]
+                }
+            }
+        }
+    ])
+
+    if(!availableSlots || !availableSlots?.length){
+        return res
+            .status(404)
+            .json(new ApiError(404, 'Slots not created yet.'))
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, availableSlots, 'Available slots fetched successfully.'))
+})
+
 export {
     registerUser,
     loginUser,
@@ -679,6 +712,7 @@ export {
     getPlans,
     bookSlot,
     viewBookedSlots,
-    deleteBookedSlot
+    deleteBookedSlot,
+    getAvailableSlots
 
 }
