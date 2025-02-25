@@ -4,7 +4,9 @@ import {
     userActivation, updateAvatar, updatePasswordWithJWT,
     sendPasswordResetOnMail, sendPasswordSubmitForm, 
     updatePasswordWithEmail, sendVerificationEmail,
-    getEvents, getCatalogue, renewAccessAndRefreshToken, getPlans } from '../controllers/user.controller.js'
+    getEvents, getCatalogue, renewAccessAndRefreshToken, 
+    getPlans, bookSlot, viewBookedSlots,
+    deleteBookedSlot } from '../controllers/user.controller.js'
 import { uploadUserFile } from '../middleware/multer.middleware.js'
 import { verifyJWT } from '../middleware/auth.middleware.js'
 // import { upload } from '../middleware/multer.middleware.js'
@@ -28,5 +30,8 @@ userRouter.route('/update-avatar').patch(uploadUserFile.single('avatar'), update
 userRouter.route('/logout').get(logout)
 userRouter.route('/reset-passwd-jwt').post(updatePasswordWithJWT)
 userRouter.route('/send-verification-link').get(sendVerificationEmail)
+userRouter.route('/book-slot').post(bookSlot)
+userRouter.route('/view-slots').get(viewBookedSlots)
+userRouter.route('/delete-slot/:bookingId').delete(deleteBookedSlot)
 
 export default userRouter

@@ -18,11 +18,17 @@ const permissions = {
     CREATE_SUBSCRIPTION_PLAN: 'create_subscription_plan',
     DELETE_SUBSCRIPTION_PLAN: 'delete_subscription_plan',
     ADD_SLOT: 'add_slot',
-    DELETE_SLOT: 'delete_slot'
+    DELETE_SLOT: 'delete_slot',
+    VIEW_BOOKINGS: 'view_bookings'
 }
 const rolePermissions = {
     user: [],
-    manager: [permissions.VIEW_ALL_USERS, permissions.CREATE_USER, permissions.ADD_NEW_GAME],
+    manager: [
+        permissions.VIEW_ALL_USERS, 
+        permissions.CREATE_USER, 
+        permissions.ADD_NEW_GAME,
+        permissions.VIEW_BOOKINGS
+    ],
     admin: [
         permissions.VIEW_ALL_USERS, 
         permissions.CREATE_USER, 
@@ -35,7 +41,8 @@ const rolePermissions = {
         permissions.CREATE_SUBSCRIPTION_PLAN,
         permissions.DELETE_SUBSCRIPTION_PLAN,
         permissions.ADD_SLOT,
-        permissions.DELETE_SLOT
+        permissions.DELETE_SLOT,
+        permissions.VIEW_BOOKINGS
     ]
 }
 

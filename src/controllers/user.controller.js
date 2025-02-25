@@ -1,13 +1,16 @@
-import fs from 'fs'
+import fs, { Stats } from 'fs'
 import asyncHandler from '../utils/asyncHandler.js'
 import ApiError from '../utils/apiError.js'
 import ApiResponse from '../utils/apiResponse.js'
 import ApiEmail from '../utils/apiEmail.js'
 import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js'
+import { isValidObjectId } from 'mongoose'
 import User from '../models/user.model.js'
 import Event from '../models/event.model.js'
 import Catalogue from '../models/catalogue.model.js'
 import SubscriptionModels from '../models/subscription.model.js'
+import Slot from '../models/slot.model.js'
+import Booking from '../models/booking.model.js'
 import jwt from 'jsonwebtoken'
 import { sendVerificationLink, verifyEmailToken } from '../utils/emailServices.js'
 import { generateVerificationResponse, tokenExpiredResponse, submitPasswordForm } from '../templates/index.template.js'
@@ -214,10 +217,7 @@ const registerUser = asyncHandler( async (req, res) => {
     if(!mailStatus){
         console.log('Something went wrong while sending mail')
     }
-    // const plainUser = user.toObject();
-    // plainUser.mailStatus = mailStatus
-    // delete plainUser.password
-    // delete plainUser.refreshToken
+
     // TODO
     // at frontend check user.mailStatus to check status of verification mail sent to user
     // add symbol or function to display verified user.(Done)
@@ -505,8 +505,6 @@ const updatePasswordWithEmail = asyncHandler(async(req, res)=>{
         .send(generateVerificationResponse())
 })
 
-
-
 const getEvents = asyncHandler(async(_, res)=>{
     const events = await Event.find().select("-createdAt -updatedAt -__v");
     if(!events){
@@ -533,7 +531,6 @@ const getCatalogue = asyncHandler(async(_, res)=>{
         .json(new ApiResponse(200, gameCatalogue, 'Game catalogue fetched successfully.'))
 })
 
-
 const getPlans = asyncHandler ( async( _, res ) => {
     const plans = await SubscriptionModels.find().select('-createdAt -updatedAt -__v')
     if(!plans){
@@ -545,6 +542,124 @@ const getPlans = asyncHandler ( async( _, res ) => {
     return res
         .status(200)
         .json(new ApiResponse(200, plans, 'Subscription details fetched successfully.'))
+})
+
+const bookSlot = asyncHandler(async(req, res)=>{
+    const { date, timeFrame } = req.body
+    if ( !date || !timeFrame){
+        return res
+            .status(400)
+            .json(new ApiError(400, 'All fields(date "yyyy-mm-dd", timeFrame "09AM-10AM") are required.'))
+    }
+
+    let slot = await Slot.findOne({date: new Date(date), timeFrame})
+    if(!slot){
+        slot = new Slot({date: new Date(date), timeFrame})
+        await slot.save()
+    }
+
+    const existingBookingsCount = await Booking.countDocuments({slotId: slot._id})
+    if ( existingBookingsCount >= slot.maxBookings ){
+        return res
+            .status(409)
+            .json(new ApiResponse(409, {}, `${timeFrame} Slot is full.`))
+    }
+
+    const booking = await Booking.create({slotId: slot._id, userId: req.user?._id})
+    if(!booking){
+        return  res
+            .status(500)
+            .json(new ApiError(500, 'Something went wrong.'))
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, booking, `${timeFrame} Slot booked succesfully.`))
+})
+
+const viewBookedSlots = asyncHandler(async(req, res)=>{
+    const userId = req.user?._id
+    if(!userId){
+        return res
+            .status(400)
+            .json(new ApiError(400, 'User Id cannot be empty.'))
+    }
+
+    if(!isValidObjectId(userId)){
+        return res
+            .status(400)
+            .json(new ApiError(400, 'Invalid user id.'))
+    }
+
+    const myBookings = await Booking.aggregate([
+        {
+            $match: { 
+                userId
+            }
+        },
+        {
+            $project: {
+                slotId: 1
+            }
+        },
+        {
+            $lookup: {
+                from: 'slots',
+                localField: 'slotId',
+                foreignField: '_id',
+                as: 'slotDetails'
+            }
+        },
+        {
+            $unwind: {
+                path: '$slotDetails',
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $project: {
+                _id: 1,
+                slotId: 1,
+                date: '$slotDetails.date',
+                timeFrame: '$slotDetails.timeFrame'
+            }
+        }
+    ])
+
+    if(!myBookings || !myBookings.length){
+        return res
+            .status(404)
+            .json(new ApiResponse(404, {}, 'No bookings yet.'))
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, myBookings, 'Bookings fetched.'))
+})
+
+const deleteBookedSlot = asyncHandler(async(req, res)=>{
+    const { bookingId } = req.params
+    if(!bookingId){
+        return res
+            .status(400)
+            .json(new ApiError(400, 'Booking Id required.'))
+    }
+
+    if(!isValidObjectId(bookingId)){
+        return res
+            .status(400)
+            .json(new ApiError(400, 'Invalid booking id.'))
+    }
+
+    const destroy = await Booking.deleteOne({_id: bookingId})
+    if(!destroy?.deletedCount){
+        return res
+            .status(404)
+            .json(new ApiError(404, 'Booking not found.'))
+    }
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, `Booking cancelled.`))
 })
 
 export {
@@ -562,5 +677,8 @@ export {
     getCatalogue,
     renewAccessAndRefreshToken,
     getPlans,
+    bookSlot,
+    viewBookedSlots,
+    deleteBookedSlot
 
 }

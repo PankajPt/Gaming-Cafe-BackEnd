@@ -10,10 +10,12 @@ const bookingSchema = new Schema(
         userId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
-            required: true
+            required: true,
         }
     }, { timestamps: true}
 )
+
+bookingSchema.index({ slotId: 1, userId: 1 },{ unique: true })
 
 const Booking = mongoose.model('Booking', bookingSchema)
 
