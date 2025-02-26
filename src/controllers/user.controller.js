@@ -565,7 +565,14 @@ const bookSlot = asyncHandler(async(req, res)=>{
             .json(new ApiResponse(409, {}, `${timeFrame} Slot is full.`))
     }
 
-    const booking = await Booking.create({slotId: slot._id, userId: req.user?._id})
+    const booking = await Booking.create(
+        {
+            slotId: slot._id, 
+            userId: req.user?._id,
+            expiresAt: slot.date
+        }
+    )
+
     if(!booking){
         return  res
             .status(500)
@@ -619,7 +626,6 @@ const viewBookedSlots = asyncHandler(async(req, res)=>{
         {
             $project: {
                 _id: 1,
-                slotId: 1,
                 date: '$slotDetails.date',
                 timeFrame: '$slotDetails.timeFrame'
             }

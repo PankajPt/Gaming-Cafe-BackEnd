@@ -11,7 +11,15 @@ const bookingSchema = new Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
             required: true,
+        },
+        expiresAt: {
+            type: Date,
+            required: true,
+            index: {
+                expires: 86400
+            }
         }
+
     }, { timestamps: true}
 )
 
