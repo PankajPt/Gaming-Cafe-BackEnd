@@ -3,7 +3,7 @@ import { verifyJWT } from '../middleware/auth.middleware.js'
 import { changeUserRole, addNewGame, deleteGame, createEvent,
     deleteEvent, viewUsers, createSubscriptionPlan,
     deleteSubscriptionPlan, createSlot, deleteSlotById, 
-    deleteSlotsByDate, getAllBookedSlots, } from '../controllers/admin.controller.js'
+    deleteSlotsByDate, getAllBookedSlots, clearBooking} from '../controllers/admin.controller.js'
 import { uploadAdminFile } from '../middleware/multer.middleware.js'
 
 const adminRouter = Router()
@@ -22,5 +22,6 @@ adminRouter.route('/create-slot').post(createSlot)
 adminRouter.route('/delete-slot/:slotId').delete(deleteSlotById)
 adminRouter.route('/delete-slot').delete(deleteSlotsByDate)
 adminRouter.route('/get-bookings').get(getAllBookedSlots)
+adminRouter.route('/delete-booking/:bookingId').delete(clearBooking)
 
 export default adminRouter

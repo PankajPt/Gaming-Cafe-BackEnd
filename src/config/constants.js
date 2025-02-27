@@ -19,7 +19,8 @@ const permissions = {
     DELETE_SUBSCRIPTION_PLAN: 'delete_subscription_plan',
     ADD_SLOT: 'add_slot',
     DELETE_SLOT: 'delete_slot',
-    VIEW_BOOKINGS: 'view_bookings'
+    VIEW_BOOKINGS: 'view_bookings',
+    CLEAR_BOOKING: 'clear_booking'
 }
 const rolePermissions = {
     user: [],
@@ -27,7 +28,8 @@ const rolePermissions = {
         permissions.VIEW_ALL_USERS, 
         permissions.CREATE_USER, 
         permissions.ADD_NEW_GAME,
-        permissions.VIEW_BOOKINGS
+        permissions.VIEW_BOOKINGS,
+        permissions.CLEAR_BOOKING
     ],
     admin: [
         permissions.VIEW_ALL_USERS, 
@@ -42,7 +44,8 @@ const rolePermissions = {
         permissions.DELETE_SUBSCRIPTION_PLAN,
         permissions.ADD_SLOT,
         permissions.DELETE_SLOT,
-        permissions.VIEW_BOOKINGS
+        permissions.VIEW_BOOKINGS,
+        permissions.CLEAR_BOOKING
     ]
 }
 
