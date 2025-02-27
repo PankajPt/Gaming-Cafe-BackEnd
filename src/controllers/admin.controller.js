@@ -10,7 +10,7 @@ import Booking from "../models/booking.model.js";
 import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js'
 import {rolePermissions, permissions} from '../config/constants.js'
 import fs from 'fs'
-
+import { isValidObjectId } from "mongoose";
 
 const verifyUserPermissions = (permissionData, res) => {
     const { userPermissions, requiredPermission } = permissionData;
@@ -374,6 +374,39 @@ const getAllBookedSlots = asyncHandler(async(req, res)=>{
 
 })
 
+const clearBooking = asyncHandler(async(req, res)=> {
+    const permissionData = {
+        requiredPermission: permissions.CLEAR_BOOKING, 
+        userPermissions: req.user.permissions
+    }
+    const isVerified = verifyUserPermissions(permissionData, res)
+    if (!isVerified){
+        return
+    }
+    const { bookingId } = req.params
+    if(!bookingId){
+        return res
+            .status(400)
+            .json(new ApiError(400, 'Booking Id required.'))
+    }
+
+    if(!isValidObjectId(bookingId)){
+        return res
+            .status(400)
+            .json(new ApiError(400, 'Invalid booking id.'))
+    }
+
+    const destroy = await Booking.deleteOne({_id: bookingId})
+    if(!destroy?.deletedCount){
+        return res
+            .status(404)
+            .json(new ApiError(404, 'Booking not found.'))
+    }
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, `Booking cancelled.`))
+})
+
 // Delete Slots - Slot id
 const deleteSlotById = asyncHandler(async(req, res) => {
     const permissionData = {
@@ -541,4 +574,5 @@ const deleteSubscriptionPlan = asyncHandler(async(req, res)=> {
 export { changeUserRole, addNewGame, deleteGame, 
     createEvent, deleteEvent, createSubscriptionPlan, 
     viewUsers, deleteSubscriptionPlan, createSlot, 
-    deleteSlotById, deleteSlotsByDate, getAllBookedSlots }
+    deleteSlotById, deleteSlotsByDate, getAllBookedSlots,
+    clearBooking }
