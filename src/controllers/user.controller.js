@@ -657,12 +657,14 @@ const deleteBookedSlot = asyncHandler(async(req, res)=>{
             .json(new ApiError(400, 'Invalid booking id.'))
     }
 
-    const destroy = await Booking.deleteOne({_id: bookingId})
-    if(!destroy?.deletedCount){
+    const destroy = await Booking.findOneAndDelete({_id: bookingId, userId: req.user._id})
+    
+    if(!destroy){
         return res
             .status(404)
-            .json(new ApiError(404, 'Booking not found.'))
+            .json(new ApiError(404, 'Booking not found or access denied.'))
     }
+
     return res
         .status(200)
         .json(new ApiResponse(200, {}, `Booking cancelled.`))

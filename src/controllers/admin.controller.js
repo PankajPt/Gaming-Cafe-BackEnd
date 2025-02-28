@@ -198,11 +198,18 @@ const createEvent = asyncHandler(async(req, res)=>{
     const { title, description, date, prizeMoney, entryFee } = req.body
     const imageFilePath = req.file?.path
 
-    if (!title || !description || !imageFilePath || !prizeMoney || !entryFee){
+    if (!title || !description || !imageFilePath || !prizeMoney || !entryFee || !date){
         await removeTempFile(imageFilePath)
         return res
             .status(400)
-            .json(new ApiResponse(400, {}, 'All fields (title, description, image, prizeMoney, entryFee) are required'))
+            .json(new ApiResponse(400, {}, 'All fields (title, description, image, date, prizeMoney, entryFee) are required'))
+    }
+
+    if (prizeMoney <=0 || entryFee <=0){
+        await removeTempFile(imageFilePath)
+        return res
+            .status(400)
+            .json(new ApiResponse(400, {}, 'Prize Money and Entry Fee cannot be less than 0.'))
     }
 
     const cloudiResponse = await uploadOnCloudinary(imageFilePath, 'image')
@@ -245,14 +252,14 @@ const deleteEvent = asyncHandler(async(req, res)=>{
         return
     }
 
-    const { planId } = req.params
+    const { eventId } = req.params
 
-    if(!planId){
+    if(!eventId){
         return res
         .status(400)
         .json(new ApiError(400, 'Event id required to perform this operation.'))
     }
-    const destroy = await Event.findOneAndDelete({_id: planId}).select('thumbnail')
+    const destroy = await Event.findOneAndDelete({_id: eventId}).select('thumbnail')
     if(!destroy){
         return res
         .status(404)
@@ -487,9 +494,17 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
     const paymentQRPath  = req.file?.path
 
     if(!(features && description && title && price && paymentQRPath)){
+        await removeTempFile(paymentQRPath)
         return res
             .status(400)
             .json(new ApiError(400, 'All fields (name, description, period, price) are required.'))
+    }
+
+    if(price <= 0){
+        await removeTempFile(paymentQRPath)
+        return res
+            .status(400)
+            .json(new ApiError(400, 'Price cannot be less than 0.'))
     }
 
     const featureArr = features
