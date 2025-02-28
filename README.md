@@ -11,7 +11,6 @@ extracted_backend/
     package.json
     package-lock.json
     README.md
-    test.html
     src/
         config/
             [Configuration Files]
