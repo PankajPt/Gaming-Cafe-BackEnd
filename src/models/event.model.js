@@ -23,7 +23,7 @@ const eventSchema = new Schema(
         eventDate: {
             type: Date,
             default: Date.now(),
-            index: { expires: '1d'}
+            index: { expires: 86400 }
         },
         prizeMoney: {
             type: Number,
