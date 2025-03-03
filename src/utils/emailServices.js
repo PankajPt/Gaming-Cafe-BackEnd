@@ -33,12 +33,26 @@ const sendVerificationLink = async function(emailData){
     try {
         const response = await axios.post(BREVO_URI, data, config)
         return {
-            status: response.status,
-            statusText: response.statusText
+            statusCode: response.status,
+            message: response.statusText,
+            success: true
         }
     } catch (error) {
+        if( error.response?.data?.code === 'invalid_parameter'){
+            const errorData = {
+                statusCode: error.status,
+                errorCode: error.response?.data?.code,
+                message: error.response?.data?.message,
+                success: false
+            }
+            console.log(`${new Date(Date.now()).toLocaleString()}: ${error}\nError Code: ${errorData.errorCode}\nError Message: ${errorData.message}`)  
+            return errorData
+        }
         console.log(`${new Date(Date.now()).toLocaleString()}: ${error}`)
-        return false
+        return {
+            message: error.message || 'Something went wrong while sending email, please try again.',
+            success: false
+        }
     }
 }
 

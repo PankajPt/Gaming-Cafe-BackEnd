@@ -95,11 +95,10 @@ const sendMailToVerify = async(user) => {
 const sendVerificationEmail = asyncHandler(async(req, res)=>{
     const user = req.user
     const mailStatus = await sendMailToVerify(user)
-    if(!mailStatus){
-        console.log('Something went wrong while sending mail')
+    if(!mailStatus.success){
         return res
-        .status(500)
-        .json(new ApiResponse(500, {}, 'Something went wrong, Please try again'))
+            .status(mailStatus.statusCode || 500)
+            .json(new ApiError(mailStatus.statusCode || 500, mailStatus.message || 'Something went wrong while sending verification mail, Please try again'))
     }
     return res
         .status(201)
@@ -214,8 +213,8 @@ const registerUser = asyncHandler( async (req, res) => {
     }
 
     const mailStatus = await sendMailToVerify(user)
-    if(!mailStatus){
-        console.log('Something went wrong while sending mail')
+    if(!mailStatus.success){
+        console.log(mailStatus)
     }
 
     // TODO
