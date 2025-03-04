@@ -1,6 +1,13 @@
+import express from 'express'
 import dotenv from 'dotenv'
 dotenv.config()
 const BACKEND_URI = process.env.BACKEND_BASE_URI
+const PORT = process.env.KEEP_ALIVE_PORT
+
+const app = express()
+
+app.get('/', (req, res) => 'Keep Alive Micro service running.')
+app.listen(PORT, () => console.log(`Keep Alive listning on port: ${PORT}`))
 
 const generateSequenceNumber = (len) => {
     let alphaNum = "0123456789ABCDEFGHJKLMNOPQRSTUVWXYZ"
@@ -27,7 +34,7 @@ const pingServer = async () => {
         const response = await fetch(`${BACKEND_URI}/users/heartbeat/${sequenceId}`, options)
         const responseData = await response.json()
         if (!response.ok){
-            console.log(`[${new Date().toISOString()}] Heart_Beat[]:`, responseData.status);
+            console.log(`[${new Date().toISOString()}] Heart_Beat[]:`, responseData.status || "");
             return
         }
         console.log(`[${new Date().toISOString()}] Heart_Beat[${responseData.data.SEQ_NUM}]: RECEIVED`, responseData.data.status)
@@ -37,4 +44,4 @@ const pingServer = async () => {
 
 }
 pingServer()
-setInterval(pingServer, 10 * 60 * 1000);
+setInterval(pingServer, 5000);
