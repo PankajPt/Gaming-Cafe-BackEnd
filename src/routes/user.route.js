@@ -26,6 +26,7 @@ userRouter.route('/subs-plans').get(getPlans)
 userRouter.route('/get-slots').get(getAvailableSlots)
 userRouter.route('/heartbeat/:sequenceId').get(keepAlive)
 
+
 // secure routes
 userRouter.use(verifyJWT)
 userRouter.route('/update-avatar').patch(uploadUserFile.single('avatar'), updateAvatar)
