@@ -6,7 +6,7 @@ import {
     updatePasswordWithEmail, sendVerificationEmail,
     getEvents, getCatalogue, renewAccessAndRefreshToken, 
     getPlans, bookSlot, viewBookedSlots,
-    deleteBookedSlot, getAvailableSlots } from '../controllers/user.controller.js'
+    deleteBookedSlot, getAvailableSlots, keepAlive } from '../controllers/user.controller.js'
 import { uploadUserFile } from '../middleware/multer.middleware.js'
 import { verifyJWT } from '../middleware/auth.middleware.js'
 // import { upload } from '../middleware/multer.middleware.js'
@@ -24,6 +24,7 @@ userRouter.route('/catalogue').get(getCatalogue)
 userRouter.route('/refresh').get(renewAccessAndRefreshToken)
 userRouter.route('/subs-plans').get(getPlans)
 userRouter.route('/get-slots').get(getAvailableSlots)
+userRouter.route('/heartbeat/:sequenceId').get(keepAlive)
 
 // secure routes
 userRouter.use(verifyJWT)

@@ -702,6 +702,19 @@ const getAvailableSlots = asyncHandler(async(req, res)=>{
         .json(new ApiResponse(200, availableSlots, 'Available slots fetched successfully.'))
 })
 
+const keepAlive = asyncHandler(async(req, res) => {
+    const SEQ_NUM = req.params?.sequenceId
+    if (!SEQ_NUM){
+        return res
+            .status(400)
+            .json(new ApiResponse(400, {status: 'OK'}, 'SEQ_NUM is missing'))
+    }
+    
+    return res
+        .status(200)
+        .json(new ApiResponse(200, { SEQ_NUM, status: 'OK' }, `${SEQ_NUM}: OK`))
+})
+
 export {
     registerUser,
     loginUser,
@@ -720,6 +733,7 @@ export {
     bookSlot,
     viewBookedSlots,
     deleteBookedSlot,
-    getAvailableSlots
+    getAvailableSlots,
+    keepAlive,
 
 }
