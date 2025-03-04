@@ -4,16 +4,23 @@ dotenv.config()
 const BACKEND_URI = process.env.BACKEND_BASE_URI
 const PORT = process.env.KEEP_ALIVE_PORT
 
+if (!BACKEND_URI) {
+    console.error("❌ BACKEND_BASE_URI is not defined in the environment variables.");
+    process.exit(1);
+}
+
+
 const app = express()
 
-app.get('/', (req, res) => 'Keep Alive Micro service running.')
-app.listen(PORT, () => console.log(`Keep Alive listning on port: ${PORT}`))
+app.get('/', (req, res) => res.send('Keep Alive Micro service running.'));
+
+app.listen(PORT, () => console.log(`✅ Keep Alive listening on port: ${PORT}`));
 
 const generateSequenceNumber = (len) => {
     let alphaNum = "0123456789ABCDEFGHJKLMNOPQRSTUVWXYZ"
     let sequenceNumber = ""
     for ( let i = 0; i < len; i++){
-        const digit = Math.floor(Math.random() * alphaNum.length + 1)
+        const digit = Math.floor(Math.random() * alphaNum.length)
         sequenceNumber += alphaNum.charAt(digit)
     }
     return sequenceNumber
