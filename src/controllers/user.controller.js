@@ -323,7 +323,6 @@ const updateAvatar = asyncHandler(async(req, res)=> {
     const oldAvatar = req.user.avatar
     const uploadResponse = await uploadOnCloudinary(avatarFilePath, 'image')
     if (!uploadResponse) {
-        removeTempFile(avatarFilePath)
         return res
         .status(500)
         .json(new ApiResponse(500, {}, 'Something went wrong. Please try again.'))
@@ -336,10 +335,9 @@ const updateAvatar = asyncHandler(async(req, res)=> {
         {
             new: true
         }
-    ).select('-password -refreshToken')
+    ).select('-password -refreshToken -permissions -createdAt -updatedAt -__v')
     
     if (!user){
-        removeTempFile(avatarFilePath)
         return res
         .status(500)
         .json(new ApiResponse(500, {}, 'Something went wrong. Please try again.'))
@@ -347,17 +345,10 @@ const updateAvatar = asyncHandler(async(req, res)=> {
 
     await deleteFromCloudinary(oldAvatar, "",  'image')
     // need logging if failed to clear from cloudinary with url.
-    const plainUser = user.toObject()
-    delete plainUser.refreshToken
-    delete plainUser.password
-    delete plainUser.createdAt
-    delete plainUser.updatedAt
-    delete plainUser.__v
-    delete plainUser.permissions
 
     return res
         .status(200)
-        .json(new ApiResponse(200, plainUser, 'Avatar updated successfully'))
+        .json(new ApiResponse(200, user, 'Avatar updated successfully'))
 })
 
 // forgot password through login-jwt-verify
@@ -712,7 +703,7 @@ const keepAlive = asyncHandler(async(req, res) => {
             .status(400)
             .json(new ApiResponse(400, {status: 'OK'}, 'SEQ_NUM is missing'))
     }
-    
+
     console.log(`[${new Date().toISOString()}] Heart_Beat_RES-[${SEQ_NUM}]: SENT OK`)    
     return res
         .status(200)
