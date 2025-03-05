@@ -51,4 +51,4 @@ const pingServer = async () => {
 
 }
 pingServer()
-setInterval(pingServer, 10 * 60 * 1000);
+setInterval(pingServer, 60 * 1000);
