@@ -399,6 +399,63 @@ const updatePasswordWithJWT = asyncHandler(async(req, res)=>{
 
 })
 
+const updateEmailBeforeVerification = asyncHandler(async (req, res) => {
+    const user = req.user
+    // try {
+        if (user.isActiveUser) {
+            return res
+                .status(400)
+                .json(new ApiError(400, "Already active user. Unable to change email ID now."));
+        }
+
+        const { emailId } = req.body;
+
+        if (!emailId) {
+            return res
+                .status(400)
+                .json(new ApiError(400, "Email ID cannot be blank."));
+        }
+
+        if (emailId === user.email) {
+            return res
+                .status(400)
+                .json(new ApiError(400, "You're already using this email. Please enter a different email address."));
+        }
+
+        const updatedUser = await User.findOneAndUpdate(
+            { _id: user._id },
+            { $set: { email: emailId } },
+            { new: true, runValidators: true }
+        ).select("_id username email fullname avatar role isActiveUser");
+
+        if (!updatedUser) {
+            return res
+                .status(500)
+                .json(new ApiError(500, "Something went wrong while updating the email. Please try again."));
+        }
+
+        const mailStatus = await sendMailToVerify(updatedUser)
+        if(!mailStatus.success){
+            console.log(mailStatus)
+        }
+
+        return res
+            .status(200)
+            .json(new ApiResponse(200, updatedUser, "Your email ID has been successfully updated."));
+
+    // } catch (error) {
+    //     if (error.code === 11000) {
+    //         return res
+    //             .status(409)
+    //             .json(new ApiError(409, "This email is already registered with another user."));
+    //     }
+    //     return res
+    //         .status(500)
+    //         .json(new ApiError(500, "Internal Server Error. Please try again later."));
+    // }
+});
+
+
 // forgot password through verification link
 const sendPasswordResetOnMail = asyncHandler(async(req, res)=>{
     const { email } = req.body
@@ -717,6 +774,7 @@ export {
     userActivation,
     updateAvatar,
     updatePasswordWithJWT,
+    updateEmailBeforeVerification,
     sendPasswordResetOnMail,
     sendPasswordSubmitForm,
     updatePasswordWithEmail,
