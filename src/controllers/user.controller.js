@@ -107,7 +107,7 @@ const sendVerificationEmail = asyncHandler(async(req, res)=>{
 
 const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
     const oldRefreshToken = req.cookies?.refreshToken
-    if ( !oldRefreshToken ) {
+    if (!oldRefreshToken) {
         return res
             .status(400)
             .json(new ApiResponse(400, {forcedLogout: true}, 'FRL'))
@@ -129,7 +129,7 @@ const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
         }
 
         const {accessToken, refreshToken} =  await generateAccessAndRefreshToken(user._id)
-        if (!(accessToken && refreshToken)){
+        if (!accessToken || !refreshToken){
             return res
                 .status(500)
                 .json(new ApiResponse(500, {forcedLogout: false}, 'Try again'))
@@ -138,18 +138,19 @@ const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
         user.refreshToken = refreshToken
         await user.save()
     
-        // const plainUser = user.toObject()
-        // delete plainUser.refreshToken
-        // delete plainUser.password
-        // delete plainUser.createdAt
-        // delete plainUser.updatedAt
-        // delete plainUser.permissions
+        const plainUser = user.toObject()
+        plainUser.accessToken = accessToken
+        delete plainUser.refreshToken
+        delete plainUser.password
+        delete plainUser.createdAt
+        delete plainUser.updatedAt
+        delete plainUser.permissions
         
         return res
             .status(200)
             .cookie('accessToken', accessToken, options)
             .cookie('refreshToken', refreshToken, options)
-            .json(new ApiResponse(200, {}, 'Tokens refreshed.'))
+            .json(new ApiResponse(200, plainUser, 'Tokens refreshed.'))
 
     } catch (error) {
         console.log(error)
@@ -237,18 +238,16 @@ const loginUser = asyncHandler( async (req, res) => {
     // const newEmail = email.toLowerCase().trim()
     const user = await User.findOne({$or: [{username},{email: username}]})
     if (!user){
-        // throw new ApiError(404, 'User not found')
         return res
         .status(404)
-        .json(new ApiResponse(404, {}, 'User not found'))
+        .json(new ApiError(404, 'User not found'))
     }
 
     const validUser = await user.isValidPassword(password)
     if (!validUser){
-        // throw new ApiError(401, 'Password Invalid')
         return res
         .status(401)
-        .json(new ApiResponse(401, {}, 'Invalid password'))
+        .json(new ApiError(401, 'Invalid password'))
     }
 
     if ( user.permissions.length < rolePermissions[user.role].length ){
@@ -259,6 +258,7 @@ const loginUser = asyncHandler( async (req, res) => {
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
     
     const plainUser = user.toObject()
+    plainUser.accessToken = accessToken
     delete plainUser.refreshToken
     delete plainUser.password
     delete plainUser.createdAt
@@ -270,7 +270,7 @@ const loginUser = asyncHandler( async (req, res) => {
         .status(200)
         .cookie('accessToken', accessToken, options)
         .cookie('refreshToken', refreshToken, options)
-        .json(new ApiResponse(200, plainUser, `${user.username} login successfull`))
+        .json(new ApiResponse(200, plainUser, `${plainUser.username} login successfull`))
 })
 
 const logout = asyncHandler(async(req, res) => {

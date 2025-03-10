@@ -44,9 +44,9 @@ const userSchema = new Schema(
             default: []
         },
         isActiveUser: {
-            type: String,
-            enum: ['active', 'inactive'],
-            default: 'inactive'
+            type: Boolean,
+            // enum: ['active', 'inactive'],
+            default: false
         }
 
     },{timestamps: true})
