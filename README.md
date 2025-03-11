@@ -28,72 +28,23 @@ extracted_backend/
             [Utility Functions]
 ```
 
-# Madgear Gaming Cafe - Frontend Setup Guide
-
-## 🚀 Getting Started
-
-### 1️⃣ Clone the Repository
-```bash
-git clone https://github.com/PankajPt/madgear.git
-cd madgear
-```
-
-### 2️⃣ Install Dependencies
-```bash
-npm install
-```
-
-## 🎨 Setting Up Tailwind CSS
-
-### 3️⃣ Install Tailwind CSS and Related Packages
-```bash
-npm install -D tailwindcss postcss autoprefixer
-npx tailwindcss init -p
-```
-
-### 4️⃣ Configure Tailwind Content Paths
-Open `tailwind.config.js` and set the `content` property:
-```js
-/** @type {import('tailwindcss').Config} */
-export default {
-  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-};
-```
-
-### 5️⃣ Add Tailwind Directives in CSS
-In `src/index.css`, add:
-```css
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-```
-
-## 🛠️ Running the Project
-```bash
-npm run dev
-```
-
-## ❗ Troubleshooting
-If Tailwind commands are not recognized:
-```bash
-rm -rf node_modules package-lock.json
-tnpm cache clean --force
-npm install
-```
-
-If styles are not applied, check:
-- Tailwind is imported correctly in `index.css`
-- The `content` paths in `tailwind.config.js` are correct
-- Restart the development server after changes
-
----
-This setup ensures Tailwind works correctly with your **Madgear Gaming Cafe** frontend. 🚀
-
-
+## Installation
+1. Clone the repository:
+   ```sh
+   git clone https://github.com/your-repo/madgear-backend.git
+   ```
+2. Navigate to the project directory:
+   ```sh
+   cd madgear-backend
+   ```
+3. Install dependencies:
+   ```sh
+   npm install
+   ```
+4. Start the server:
+   ```sh
+   npm start
+   ```
 
 ## Environment Variables
 Create a `.env` file in the root directory and add the required environment variables.
