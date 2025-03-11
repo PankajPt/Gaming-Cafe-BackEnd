@@ -294,18 +294,18 @@ const userActivation = asyncHandler(async(req, res)=> {
     const decodedToken = await verifyEmailToken(token)
     if (!decodedToken){
         return res
-        .status(401)
-        .send(tokenExpiredResponse())
+                .status(401)
+                .send(tokenExpiredResponse())
     }
 // need to modify tokenExpiryResponse template to generic -- 
     const user = await User.findById(decodedToken._id)
     if (!user){
         return res
-        .status(400)
-        .send(tokenExpiredResponse())
+                .status(400)
+                .send(tokenExpiredResponse())
     }
 
-    user.isActiveUser = 'active'
+    user.isActiveUser = true
     await user.save()
     return res
             .status(200)
