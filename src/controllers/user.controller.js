@@ -1,4 +1,4 @@
-import fs, { Stats } from 'fs'
+import fs from 'fs'
 import asyncHandler from '../utils/asyncHandler.js'
 import ApiError from '../utils/apiError.js'
 import ApiResponse from '../utils/apiResponse.js'
@@ -14,7 +14,7 @@ import Booking from '../models/booking.model.js'
 import jwt from 'jsonwebtoken'
 import { sendVerificationLink, verifyEmailToken } from '../utils/emailServices.js'
 import { generateVerificationResponse, tokenExpiredResponse, submitPasswordForm } from '../templates/index.template.js'
-import { rolePermissions, permissions } from '../config/constants.js'
+import { rolePermissions } from '../config/constants.js'
 import { logger } from '../utils/logger.js'
 
 // Local
@@ -48,7 +48,7 @@ const generateAccessAndRefreshToken = async(userID) => {
 
         const user = await User.findById({_id: userID})
         if (!user){
-            logger.error(`User details not found for id: ${userID}`)
+            logger.warn(`User details not found for id: ${userID}`)
             throw new ApiError(400, 'User not found')
         }
         
@@ -62,40 +62,37 @@ const generateAccessAndRefreshToken = async(userID) => {
         
         user.refreshToken = refreshToken
         await user.save() //validate before save
-        logger.info(`Access and Refresh Token generated for user: ${user._id}`)
+        logger.info(`Access and Refresh Token generated for user: ${user.username}`)
         return {accessToken, refreshToken}
     } catch (error) {
-        logger.error(`MongoDB Error: Error while generating access and refresh token for user ${user._id}`)
+        logger.error(error)
         throw new ApiError(500, 'Something went wrong while generationg access and refresh token')
     }
 }
 
 const generateRandomKey = (userId)=>{
+    const randomKey = jwt.sign({_id: userId}, process.env.RANDOM_KEY_SECRET, {expiresIn: process.env.RAMDOM_KEY_EXPIRY})
+    if(!randomKey){
+        logger.error(`Something went wrong while generating random key.`)
+    }
     logger.info(`Random key generated for user: ${userId}`)
-    return jwt.sign({_id: userId}, process.env.RANDOM_KEY_SECRET, {expiresIn: process.env.RAMDOM_KEY_EXPIRY})
+    return randomKey
 }
 // function to create send mail
 const sendMailToVerify = async(user) => {
     if (!user){
-        logger.error('User not specified')
+        logger.warn('User not specified')
         throw new ApiError(400, 'User not specified')
     }
-
-    try {
-        const sendMail = await sendVerificationLink(new ApiEmail(
-            user.email,
-            user.fullname,
-            `Verify Account`,
-            `Click on the button below to verify your account:`,
-            `/users/verify-email`,
-            generateRandomKey(user._id)
-        ))
-        logger.info(`Verification mail sent successfully to ${user.email}`)
-        return sendMail
-    } catch (error) {
-        logger.error(`${error.name}: ${error.message}`)
-        return false
-    }
+    const sendMail = await sendVerificationLink(new ApiEmail(
+        user.email,
+        user.fullname,
+        `Verify Account`,
+        `Click on the button below to verify your account:`,
+        `/users/verify-email`,
+        generateRandomKey(user._id)
+    ))
+    return sendMail
 }
 // api to send verification mail
 const sendVerificationEmail = asyncHandler(async(req, res)=>{
@@ -144,14 +141,6 @@ const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
         user.refreshToken = refreshToken
         await user.save()
     
-<<<<<<< HEAD
-        // const plainUser = user.toObject()
-        // delete plainUser.refreshToken
-        // delete plainUser.password
-        // delete plainUser.createdAt
-        // delete plainUser.updatedAt
-        // delete plainUser.permissions
-=======
         const plainUser = user.toObject()
         plainUser.accessToken = accessToken
         delete plainUser.refreshToken
@@ -159,7 +148,6 @@ const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
         delete plainUser.createdAt
         delete plainUser.updatedAt
         delete plainUser.permissions
->>>>>>> 53ff05309e42b9a78f20899b6c8740d07856756d
         
         return res
             .status(200)
@@ -772,8 +760,6 @@ const getAvailableSlots = asyncHandler(async(req, res)=>{
         .json(new ApiResponse(200, availableSlots, 'Available slots fetched successfully.'))
 })
 
-<<<<<<< HEAD
-=======
 const keepAlive = asyncHandler(async(req, res) => {
     const SEQ_NUM = req.params?.sequenceId
     console.log(`[${new Date().toISOString()}] Heart_Beat_REQ-[${SEQ_NUM}]: RECEIVED`)
@@ -791,7 +777,6 @@ const keepAlive = asyncHandler(async(req, res) => {
         .json(new ApiResponse(200, { SEQ_NUM, status: 'OK' }, `${SEQ_NUM}: OK`))
 })
 
->>>>>>> 53ff05309e42b9a78f20899b6c8740d07856756d
 export {
     registerUser,
     loginUser,
@@ -811,11 +796,6 @@ export {
     bookSlot,
     viewBookedSlots,
     deleteBookedSlot,
-<<<<<<< HEAD
-    getAvailableSlots
-=======
     getAvailableSlots,
     keepAlive,
->>>>>>> 53ff05309e42b9a78f20899b6c8740d07856756d
-
 }
