@@ -15,7 +15,7 @@ import jwt from 'jsonwebtoken'
 import { sendVerificationLink, verifyEmailToken } from '../utils/emailServices.js'
 import { generateVerificationResponse, tokenExpiredResponse, submitPasswordForm } from '../templates/index.template.js'
 import { rolePermissions, permissions } from '../config/constants.js'
-
+import { logger } from '../utils/logger.js'
 
 // Local
 // const  options = {
@@ -48,6 +48,7 @@ const generateAccessAndRefreshToken = async(userID) => {
 
         const user = await User.findById({_id: userID})
         if (!user){
+            logger.error(`User details not found for id: ${userID}`)
             throw new ApiError(400, 'User not found')
         }
         
@@ -55,23 +56,28 @@ const generateAccessAndRefreshToken = async(userID) => {
         const refreshToken = await user.generateRefreshToken()
         
         if (!(accessToken || refreshToken)){
+            logger.error(`MongoDB Error: Error while generating access and refresh token for user ${user._id}`)
             throw new ApiError(500, 'Something went wrong while generating access and refresh token')
         }
         
         user.refreshToken = refreshToken
         await user.save() //validate before save
+        logger.info(`Access and Refresh Token generated for user: ${user._id}`)
         return {accessToken, refreshToken}
     } catch (error) {
+        logger.error(`MongoDB Error: Error while generating access and refresh token for user ${user._id}`)
         throw new ApiError(500, 'Something went wrong while generationg access and refresh token')
     }
 }
 
 const generateRandomKey = (userId)=>{
+    logger.info(`Random key generated for user: ${userId}`)
     return jwt.sign({_id: userId}, process.env.RANDOM_KEY_SECRET, {expiresIn: process.env.RAMDOM_KEY_EXPIRY})
 }
 // function to create send mail
 const sendMailToVerify = async(user) => {
     if (!user){
+        logger.error('User not specified')
         throw new ApiError(400, 'User not specified')
     }
 
@@ -84,10 +90,10 @@ const sendMailToVerify = async(user) => {
             `/users/verify-email`,
             generateRandomKey(user._id)
         ))
-
+        logger.info(`Verification mail sent successfully to ${user.email}`)
         return sendMail
     } catch (error) {
-        console.log(error)
+        logger.error(`${error.name}: ${error.message}`)
         return false
     }
 }
