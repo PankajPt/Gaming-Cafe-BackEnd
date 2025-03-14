@@ -26,12 +26,4 @@ app.use('/api/v1/users', userRouter)
 import adminRouter from './src/routes/admin.route.js'
 app.use('/api/v1/admin', adminRouter)
 
-
-
-// verification route
-
-
-
-
-
 export default app

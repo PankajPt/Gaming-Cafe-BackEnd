@@ -1,10 +1,13 @@
 import { v2 as cloudinary } from 'cloudinary'
 import fs from 'fs'
+import { logger } from './logger.js'
 
+const timeout = Number(process.env.CLOUD_TIMEOUT)
 cloudinary.config({
     cloud_name: process.env.CLOUD_NAME,
     api_key: process.env.CLOUD_API_KEY,
-    api_secret: process.env.CLOUD_API_SECRET
+    api_secret: process.env.CLOUD_API_SECRET,
+    timeout
 })
 
 const removeTempFile = async(file) => {
@@ -14,14 +17,11 @@ const removeTempFile = async(file) => {
 const uploadOnCloudinary = async function(file, type){
     try {
         if (!file) return null
-        const response = await cloudinary.uploader.upload(file, {
-            resource_type: type
-        })    
-        console.log(`File uploaded successfully on cloudinary`)
+        const response = await cloudinary.uploader.upload(file, { resource_type: type, timeout })    
+        logger.info(`File uploaded successfully on cloudinary`, response)
         return response
     } catch (error) {
-        console.log('Error: Appear while uploading on cloudinary')
-        console.log(error)
+        logger.error('Appear while uploading on cloudinary', error)
         return false
     } finally {
         await removeTempFile(file)
@@ -31,13 +31,13 @@ const uploadOnCloudinary = async function(file, type){
 const deleteFromCloudinary = async function(uri, publicId, type){
     try {
         if (!((uri || publicId) && type)) {
-            console.log(`URI and Type is required.`)
+            logger.warn(`URI and Type is required.`)
             return false
         }
         if (!publicId){
             [publicId] = uri?.split('/').pop().split('.')
             if (!publicId) {
-                console.log(`Public-Id not found`)
+                logger.warn(`Public-Id not found`)
                 return false
             }
         }
@@ -45,10 +45,10 @@ const deleteFromCloudinary = async function(uri, publicId, type){
         const deleteRes = await cloudinary.uploader.destroy(publicId, {
            resource_type: type
         })
-        console.log(`File ${publicId} is removed from cloudinary`)
+        logger.info(`File ${publicId} is removed from cloudinary`)
         return deleteRes
     } catch (error) {
-        console.log(error)
+        logger.error(`[${publicId}]`, error)
     }
 }
 
