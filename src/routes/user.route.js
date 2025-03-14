@@ -6,7 +6,12 @@ import {
     updatePasswordWithEmail, sendVerificationEmail,
     getEvents, getCatalogue, renewAccessAndRefreshToken, 
     getPlans, bookSlot, viewBookedSlots,
+<<<<<<< HEAD
     deleteBookedSlot, getAvailableSlots } from '../controllers/user.controller.js'
+=======
+    deleteBookedSlot, getAvailableSlots, keepAlive,
+    updateEmailBeforeVerification, } from '../controllers/user.controller.js'
+>>>>>>> 53ff05309e42b9a78f20899b6c8740d07856756d
 import { uploadUserFile } from '../middleware/multer.middleware.js'
 import { verifyJWT } from '../middleware/auth.middleware.js'
 // import { upload } from '../middleware/multer.middleware.js'
@@ -24,12 +29,18 @@ userRouter.route('/catalogue').get(getCatalogue)
 userRouter.route('/refresh').get(renewAccessAndRefreshToken)
 userRouter.route('/subs-plans').get(getPlans)
 userRouter.route('/get-slots').get(getAvailableSlots)
+<<<<<<< HEAD
+=======
+userRouter.route('/heartbeat/:sequenceId').get(keepAlive)
+
+>>>>>>> 53ff05309e42b9a78f20899b6c8740d07856756d
 
 // secure routes
 userRouter.use(verifyJWT)
 userRouter.route('/update-avatar').patch(uploadUserFile.single('avatar'), updateAvatar)
 userRouter.route('/logout').get(logout)
 userRouter.route('/reset-passwd-jwt').post(updatePasswordWithJWT)
+userRouter.route('/update-email').post(updateEmailBeforeVerification)
 userRouter.route('/send-verification-link').get(sendVerificationEmail)
 userRouter.route('/book-slot').post(bookSlot)
 userRouter.route('/view-slots').get(viewBookedSlots)

@@ -15,7 +15,7 @@ import jwt from 'jsonwebtoken'
 import { sendVerificationLink, verifyEmailToken } from '../utils/emailServices.js'
 import { generateVerificationResponse, tokenExpiredResponse, submitPasswordForm } from '../templates/index.template.js'
 import { rolePermissions, permissions } from '../config/constants.js'
-
+import { logger } from '../utils/logger.js'
 
 // Local
 // const  options = {
@@ -48,6 +48,7 @@ const generateAccessAndRefreshToken = async(userID) => {
 
         const user = await User.findById({_id: userID})
         if (!user){
+            logger.error(`User details not found for id: ${userID}`)
             throw new ApiError(400, 'User not found')
         }
         
@@ -55,23 +56,28 @@ const generateAccessAndRefreshToken = async(userID) => {
         const refreshToken = await user.generateRefreshToken()
         
         if (!(accessToken || refreshToken)){
+            logger.error(`MongoDB Error: Error while generating access and refresh token for user ${user._id}`)
             throw new ApiError(500, 'Something went wrong while generating access and refresh token')
         }
         
         user.refreshToken = refreshToken
         await user.save() //validate before save
+        logger.info(`Access and Refresh Token generated for user: ${user._id}`)
         return {accessToken, refreshToken}
     } catch (error) {
+        logger.error(`MongoDB Error: Error while generating access and refresh token for user ${user._id}`)
         throw new ApiError(500, 'Something went wrong while generationg access and refresh token')
     }
 }
 
 const generateRandomKey = (userId)=>{
+    logger.info(`Random key generated for user: ${userId}`)
     return jwt.sign({_id: userId}, process.env.RANDOM_KEY_SECRET, {expiresIn: process.env.RAMDOM_KEY_EXPIRY})
 }
 // function to create send mail
 const sendMailToVerify = async(user) => {
     if (!user){
+        logger.error('User not specified')
         throw new ApiError(400, 'User not specified')
     }
 
@@ -84,10 +90,10 @@ const sendMailToVerify = async(user) => {
             `/users/verify-email`,
             generateRandomKey(user._id)
         ))
-
+        logger.info(`Verification mail sent successfully to ${user.email}`)
         return sendMail
     } catch (error) {
-        console.log(error)
+        logger.error(`${error.name}: ${error.message}`)
         return false
     }
 }
@@ -107,7 +113,7 @@ const sendVerificationEmail = asyncHandler(async(req, res)=>{
 
 const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
     const oldRefreshToken = req.cookies?.refreshToken
-    if ( !oldRefreshToken ) {
+    if (!oldRefreshToken) {
         return res
             .status(400)
             .json(new ApiResponse(400, {forcedLogout: true}, 'FRL'))
@@ -129,7 +135,7 @@ const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
         }
 
         const {accessToken, refreshToken} =  await generateAccessAndRefreshToken(user._id)
-        if (!(accessToken && refreshToken)){
+        if (!accessToken || !refreshToken){
             return res
                 .status(500)
                 .json(new ApiResponse(500, {forcedLogout: false}, 'Try again'))
@@ -138,12 +144,22 @@ const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
         user.refreshToken = refreshToken
         await user.save()
     
+<<<<<<< HEAD
         // const plainUser = user.toObject()
         // delete plainUser.refreshToken
         // delete plainUser.password
         // delete plainUser.createdAt
         // delete plainUser.updatedAt
         // delete plainUser.permissions
+=======
+        const plainUser = user.toObject()
+        plainUser.accessToken = accessToken
+        delete plainUser.refreshToken
+        delete plainUser.password
+        delete plainUser.createdAt
+        delete plainUser.updatedAt
+        delete plainUser.permissions
+>>>>>>> 53ff05309e42b9a78f20899b6c8740d07856756d
         
         return res
             .status(200)
@@ -237,18 +253,16 @@ const loginUser = asyncHandler( async (req, res) => {
     // const newEmail = email.toLowerCase().trim()
     const user = await User.findOne({$or: [{username},{email: username}]})
     if (!user){
-        // throw new ApiError(404, 'User not found')
         return res
         .status(404)
-        .json(new ApiResponse(404, {}, 'User not found'))
+        .json(new ApiError(404, 'User not found'))
     }
 
     const validUser = await user.isValidPassword(password)
     if (!validUser){
-        // throw new ApiError(401, 'Password Invalid')
         return res
         .status(401)
-        .json(new ApiResponse(401, {}, 'Invalid password'))
+        .json(new ApiError(401, 'Invalid password'))
     }
 
     if ( user.permissions.length < rolePermissions[user.role].length ){
@@ -259,6 +273,7 @@ const loginUser = asyncHandler( async (req, res) => {
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
     
     const plainUser = user.toObject()
+    plainUser.accessToken = accessToken
     delete plainUser.refreshToken
     delete plainUser.password
     delete plainUser.createdAt
@@ -270,7 +285,7 @@ const loginUser = asyncHandler( async (req, res) => {
         .status(200)
         .cookie('accessToken', accessToken, options)
         .cookie('refreshToken', refreshToken, options)
-        .json(new ApiResponse(200, plainUser, `${user.username} login successfull`))
+        .json(new ApiResponse(200, plainUser, `${plainUser.username} login successfull`))
 })
 
 const logout = asyncHandler(async(req, res) => {
@@ -294,18 +309,18 @@ const userActivation = asyncHandler(async(req, res)=> {
     const decodedToken = await verifyEmailToken(token)
     if (!decodedToken){
         return res
-        .status(401)
-        .send(tokenExpiredResponse())
+                .status(401)
+                .send(tokenExpiredResponse())
     }
 // need to modify tokenExpiryResponse template to generic -- 
     const user = await User.findById(decodedToken._id)
     if (!user){
         return res
-        .status(400)
-        .send(tokenExpiredResponse())
+                .status(400)
+                .send(tokenExpiredResponse())
     }
 
-    user.isActiveUser = 'active'
+    user.isActiveUser = true
     await user.save()
     return res
             .status(200)
@@ -323,7 +338,6 @@ const updateAvatar = asyncHandler(async(req, res)=> {
     const oldAvatar = req.user.avatar
     const uploadResponse = await uploadOnCloudinary(avatarFilePath, 'image')
     if (!uploadResponse) {
-        removeTempFile(avatarFilePath)
         return res
         .status(500)
         .json(new ApiResponse(500, {}, 'Something went wrong. Please try again.'))
@@ -336,10 +350,9 @@ const updateAvatar = asyncHandler(async(req, res)=> {
         {
             new: true
         }
-    ).select('-password -refreshToken')
+    ).select('-password -refreshToken -permissions -createdAt -updatedAt -__v')
     
     if (!user){
-        removeTempFile(avatarFilePath)
         return res
         .status(500)
         .json(new ApiResponse(500, {}, 'Something went wrong. Please try again.'))
@@ -407,6 +420,63 @@ const updatePasswordWithJWT = asyncHandler(async(req, res)=>{
         .json(new ApiResponse(200, plainUser, 'Password updated successfully') )
 
 })
+
+const updateEmailBeforeVerification = asyncHandler(async (req, res) => {
+    const user = req.user
+    // try {
+        if (user.isActiveUser) {
+            return res
+                .status(400)
+                .json(new ApiError(400, "Already active user. Unable to change email ID now."));
+        }
+
+        const { emailId } = req.body;
+
+        if (!emailId) {
+            return res
+                .status(400)
+                .json(new ApiError(400, "Email ID cannot be blank."));
+        }
+
+        if (emailId === user.email) {
+            return res
+                .status(400)
+                .json(new ApiError(400, "You're already using this email. Please enter a different email address."));
+        }
+
+        const updatedUser = await User.findOneAndUpdate(
+            { _id: user._id },
+            { $set: { email: emailId } },
+            { new: true, runValidators: true }
+        ).select("_id username email fullname avatar role isActiveUser");
+
+        if (!updatedUser) {
+            return res
+                .status(500)
+                .json(new ApiError(500, "Something went wrong while updating the email. Please try again."));
+        }
+
+        const mailStatus = await sendMailToVerify(updatedUser)
+        if(!mailStatus.success){
+            console.log(mailStatus)
+        }
+
+        return res
+            .status(200)
+            .json(new ApiResponse(200, updatedUser, "Your email ID has been successfully updated."));
+
+    // } catch (error) {
+    //     if (error.code === 11000) {
+    //         return res
+    //             .status(409)
+    //             .json(new ApiError(409, "This email is already registered with another user."));
+    //     }
+    //     return res
+    //         .status(500)
+    //         .json(new ApiError(500, "Internal Server Error. Please try again later."));
+    // }
+});
+
 
 // forgot password through verification link
 const sendPasswordResetOnMail = asyncHandler(async(req, res)=>{
@@ -702,6 +772,26 @@ const getAvailableSlots = asyncHandler(async(req, res)=>{
         .json(new ApiResponse(200, availableSlots, 'Available slots fetched successfully.'))
 })
 
+<<<<<<< HEAD
+=======
+const keepAlive = asyncHandler(async(req, res) => {
+    const SEQ_NUM = req.params?.sequenceId
+    console.log(`[${new Date().toISOString()}] Heart_Beat_REQ-[${SEQ_NUM}]: RECEIVED`)
+
+    if (!SEQ_NUM){
+        console.log(`[${new Date().toISOString()}] Heart_Beat_RES-[]: SENT OK`)
+        return res
+            .status(400)
+            .json(new ApiResponse(400, {status: 'OK'}, 'SEQ_NUM is missing'))
+    }
+
+    console.log(`[${new Date().toISOString()}] Heart_Beat_RES-[${SEQ_NUM}]: SENT OK`)    
+    return res
+        .status(200)
+        .json(new ApiResponse(200, { SEQ_NUM, status: 'OK' }, `${SEQ_NUM}: OK`))
+})
+
+>>>>>>> 53ff05309e42b9a78f20899b6c8740d07856756d
 export {
     registerUser,
     loginUser,
@@ -709,6 +799,7 @@ export {
     userActivation,
     updateAvatar,
     updatePasswordWithJWT,
+    updateEmailBeforeVerification,
     sendPasswordResetOnMail,
     sendPasswordSubmitForm,
     updatePasswordWithEmail,
@@ -720,6 +811,11 @@ export {
     bookSlot,
     viewBookedSlots,
     deleteBookedSlot,
+<<<<<<< HEAD
     getAvailableSlots
+=======
+    getAvailableSlots,
+    keepAlive,
+>>>>>>> 53ff05309e42b9a78f20899b6c8740d07856756d
 
 }
