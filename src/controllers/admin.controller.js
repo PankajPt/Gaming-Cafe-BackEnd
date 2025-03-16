@@ -200,7 +200,7 @@ const createEvent = asyncHandler(async(req, res)=>{
     }
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
-        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
+        logger.warn(`Unauthorized access attempt to createEvent by: [${req.user?.username}]`, permissionData);
         return
     }
 
@@ -209,16 +209,18 @@ const createEvent = asyncHandler(async(req, res)=>{
 
     if (!title || !description || !imageFilePath || !prizeMoney || !entryFee || !date){
         await removeTempFile(imageFilePath)
+        logger.warn('Validation failed: All fields (title, description, image, date, prizeMoney, entryFee) are required.');
         return res
             .status(400)
-            .json(new ApiResponse(400, {}, 'All fields (title, description, image, date, prizeMoney, entryFee) are required'))
+            .json(new ApiError(400, 'All fields (title, description, image, date, prizeMoney, entryFee) are required'))
     }
 
-    if (prizeMoney <=0 || entryFee <=0){
+    if (prizeMoney <= 0 || entryFee <= 0){
         await removeTempFile(imageFilePath)
+        logger.warn('Validation failed: Prize Money and Entry Fee cannot be less than 0.');
         return res
             .status(400)
-            .json(new ApiResponse(400, {}, 'Prize Money and Entry Fee cannot be less than 0.'))
+            .json(new ApiError(400, 'Prize Money and Entry Fee cannot be less than 0.'))
     }
 
     const cloudiResponse = await uploadOnCloudinary(imageFilePath, 'image')
@@ -238,12 +240,13 @@ const createEvent = asyncHandler(async(req, res)=>{
 
     if(!newEvent){
         await deleteFromCloudinary(cloudiResponse.url, cloudiResponse.public_id, 'image')
-        // throw new ApiError(500, 'Enable to create event at the moment. something went wrong while updating DB.')
+        logger.error('Event creation failed: An error occurred while updating the database.');
         return res
             .status(500)
-            .json(new ApiResponse(500, {}, 'Something went wrong, please try again.'))
+            .json(new ApiError(500, 'Something went wrong, please try again.'))
     }
 
+    logger.info('Event created successfully.');
     return res
         .status(200)
         .json(new ApiResponse(200, newEvent, 'Event created successfully.'))
@@ -258,26 +261,28 @@ const deleteEvent = asyncHandler(async(req, res)=>{
     }
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
-        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
+        logger.warn(`Unauthorized access attempt to deleteEvent by: [${req.user?.username}]`, permissionData);
         return
     }
 
     const { eventId } = req.params
 
     if(!eventId){
+        logger.warn('Operation failed: Event ID is required.');
         return res
-        .status(400)
-        .json(new ApiError(400, 'Event id required to perform this operation.'))
+            .status(400)
+            .json(new ApiError(400, 'Event id required to perform this operation.'))
     }
     const destroy = await Event.findOneAndDelete({_id: eventId}).select('thumbnail')
     if(!destroy){
+        logger.warn('Event not found.');
         return res
-        .status(404)
-        .json(new ApiError(404, 'Event not found.'))
+            .status(404)
+            .json(new ApiError(404, 'Event not found.'))
     }
 
     await deleteFromCloudinary(destroy.thumbnail.url, destroy.thumbnail.publicId, 'image')
-    // if false receive as response log the event 
+    logger.info('Event deleted successfully.');
     return res
         .status(200)
         .json(new ApiResponse(200, {}, 'Event deleted successfully.'))
@@ -285,7 +290,6 @@ const deleteEvent = asyncHandler(async(req, res)=>{
 })
 
 // arrange slots
-// Create slots - Date Range[(yyyy-mm-dd),(yyyy-mm-dd)], Time Range[all time slots]
 const createSlot = asyncHandler(async(req, res) => {
     const permissionData = {
         requiredPermission: permissions.ADD_SLOT,
@@ -294,12 +298,13 @@ const createSlot = asyncHandler(async(req, res) => {
 
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
-        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
+        logger.warn(`Unauthorized access attempt to createSlot by: [${req.user?.username}]`, permissionData);
         return
     }
 
     const { dateRange, timeRange } = req.body
     if (!dateRange?.length || !timeRange?.length ){
+        logger.warn('Validation failed: All fields (dateRange[], timeRange[]) are required.');
         return res
             .status(400)
             .json(new ApiError(400, 'All fields(dateRange[], timeRange[]) are required.'))
@@ -317,11 +322,13 @@ const createSlot = asyncHandler(async(req, res) => {
         }
     }
     const createdSlots = await Slot.insertMany(slotsToCreate)
-    if(!createSlot){
+    if(!createdSlots){
+        logger.error('Slot creation failed: An error occurred while inserting slots into the database.');
         return res
             .status(500)
             .json(new ApiError(500, 'Something went wrong while uploading data, please try again.'))
     }
+    logger.info('Slots created successfully.');
     return res
         .json(new ApiResponse(201, createdSlots, 'Slots created successfully.'))
         .status(201)
@@ -334,7 +341,7 @@ const getAllBookedSlots = asyncHandler(async(req, res)=>{
     }
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
-        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
+        logger.warn(`Unauthorized access attempt to getAllBookedSlots by: [${req.user?.username}]`, permissionData);
         return
     }
 
@@ -382,11 +389,12 @@ const getAllBookedSlots = asyncHandler(async(req, res)=>{
     ])
 
     if(!bookings.length || !bookings){
+        logger.warn('No bookings found.');
         return res
             .status(404)
             .json(new ApiError(404, 'No bookings found.'))
     }
-
+    logger.info('Bookings fetched successfully.');
     return res
         .status(200)
         .json(new ApiResponse(200, bookings, 'Bookings fetched.'))
@@ -400,17 +408,19 @@ const clearBooking = asyncHandler(async(req, res)=> {
     }
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
-        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
+        logger.warn(`Unauthorized access attempt to clearBooking by: [${req.user?.username}]`, permissionData);
         return
     }
     const { bookingId } = req.params
     if(!bookingId){
+        logger.warn('Validation failed: Booking ID is required.');
         return res
             .status(400)
             .json(new ApiError(400, 'Booking Id required.'))
     }
 
     if(!isValidObjectId(bookingId)){
+        logger.warn('Validation failed: Invalid booking ID.');
         return res
             .status(400)
             .json(new ApiError(400, 'Invalid booking id.'))
@@ -418,10 +428,12 @@ const clearBooking = asyncHandler(async(req, res)=> {
 
     const destroy = await Booking.deleteOne({_id: bookingId})
     if(!destroy?.deletedCount){
+        logger.warn('Booking not found.');
         return res
             .status(404)
             .json(new ApiError(404, 'Booking not found.'))
     }
+    logger.info('Booking cancelled successfully.');
     return res
         .status(200)
         .json(new ApiResponse(200, {}, `Booking cancelled.`))
@@ -436,23 +448,33 @@ const deleteSlotById = asyncHandler(async(req, res) => {
 
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
-        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
+        logger.warn(`Unauthorized access attempt to deleteSlotById by: [${req.user?.username}]`, permissionData);
         return
     }
 
     const { slotId } = req.params
     if(!slotId){
+        logger.warn('Validation failed: Slot ID is required.');
         return res
             .status(400)
             .json(new ApiError(400, 'Slot id is required.'))
     }
+
+    if(!isValidObjectId(slotId)){
+        logger.warn('Validation failed: Invalid Slot ID.');
+        return res
+            .status(400)
+            .json(new ApiError(400, 'Invalid Slot id.'))
+    }
+
     const destroy = await Slot.findOneAndDelete({_id: slotId})
     if(!destroy){
+        logger.warn('Slot not found. User advised to refresh the page.');
         return res
             .status(404)
             .json(new ApiError(404, 'Slot not found. Refresh the page.'))
     }
-
+    logger.info(`Time frame [${destroy.timeFrame}] deleted successfully.`);
     return res
         .status(200)
         .json(new ApiResponse(200, destroy, `${destroy.timeFrame} is deleted successfully.`))
@@ -467,24 +489,27 @@ const deleteSlotsByDate = asyncHandler(async(req, res)=>{
 
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
-        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
+        logger.warn(`Unauthorized access attempt to deleteSlotsByDate by: [${req.user?.username}]`, permissionData);
         return
     }
 
     const { date } = req.query
 
     if(!date){
+        logger.warn('Validation failed: Date is required (format: yyyy-mm-dd).');
         return res
             .status(400)
             .json(new ApiError(400, 'Date is required(yyyy-mm-dd).'))
     }
     const destroy = await Slot.deleteMany({date})
     if(!destroy){
+        logger.warn('Slot not found. User advised to refresh the page.');
         return res
             .status(404)
             .json(new ApiError(404, 'Slot not found. Refresh the page.'))
     }
 
+    logger.info(`Time frame [${date}] deleted successfully.`);
     return res
         .status(200)
         .json(new ApiResponse(200, destroy, `Slots deleted for ${date}`))        
@@ -500,17 +525,16 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
 
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
-        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
+        logger.warn(`Unauthorized access attempt to createSubscriptionPlan by: [${req.user?.username}]`, permissionData);
         return
     }
 
     const { title, description, features, price } = req.body
-
-
     const paymentQRPath  = req.file?.path
 
-    if(!(features && description && title && price && paymentQRPath)){
+    if(!features || !description || !title || !price || !paymentQRPath){
         await removeTempFile(paymentQRPath)
+        logger.warn('Validation failed: All fields (name, description, period, price) are required.');
         return res
             .status(400)
             .json(new ApiError(400, 'All fields (name, description, period, price) are required.'))
@@ -518,6 +542,7 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
 
     if(price <= 0){
         await removeTempFile(paymentQRPath)
+        logger.warn('Validation failed: Price cannot be less than 0.');
         return res
             .status(400)
             .json(new ApiError(400, 'Price cannot be less than 0.'))
@@ -549,6 +574,7 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
     )
 
     if(!newPlan){
+        logger.error('Subscription plan creation failed: An error occurred while saving to the database.');
         deleteFromCloudinary(cloudiResponse.url, cloudiResponse.public_id, 'image')
         return res
             .status(500)
@@ -560,6 +586,7 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
     delete plainSubscription.updatedAt
     delete plainSubscription.__v
 
+    logger.info('New subscription plan created successfully.');
     return res
         .status(201)
         .json(new ApiResponse(200, plainSubscription, 'New subscription plan created.'))
@@ -572,31 +599,37 @@ const deleteSubscriptionPlan = asyncHandler(async(req, res)=> {
     }
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
-        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
+        logger.warn(`Unauthorized access attempt to deleteSubscriptionPlan by: [${req.user?.username}]`, permissionData);
         return
     }
 
     const { planId } = req.params
-    
     if(!planId){
+        logger.warn('Validation failed: ID is required to delete the subscription plan.');
         return res
             .status(400)
             .json(new ApiError(400, 'Id required to delete subscription plan.'))
     }
 
+    if(!isValidObjectId(planId)){
+        logger.warn('Validation failed: Invalid Plan ID.');
+        return res
+            .status(400)
+            .json(new ApiError(400, 'Invalid Plan id.'))
+    }
+
     const destroy = await SubscriptionModels.findOneAndDelete({_id: planId})
 
     if(!destroy){
+        logger.warn('Plan not found. User advised to refresh the session.');
         return res
             .status(404)
             .json(new ApiError(404, 'Plan not found. Please refresh session.'))
     }
 
-    const deleteImage = await deleteFromCloudinary(destroy.paymentQR.url, destroy.paymentQR.publicId, 'image')
-    if(!deleteImage){
-        // log the public id and url 
-    }
+    deleteFromCloudinary(destroy.paymentQR.url, destroy.paymentQR.publicId, 'image')
 
+    logger.info(`Subscription plan deleted successfully: [${destroy.title}].`);
     return res
         .status(200)
         .json(new ApiResponse(200, destroy, `${destroy.title} has deleted successfully.`))

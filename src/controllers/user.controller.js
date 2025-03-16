@@ -55,7 +55,7 @@ const generateAccessAndRefreshToken = async(userID) => {
         const accessToken = await user.generateAccessToken()
         const refreshToken = await user.generateRefreshToken()
         
-        if (!(accessToken || refreshToken)){
+        if (!accessToken || !refreshToken){
             logger.error(`MongoDB Error: Error while generating access and refresh token for user ${user._id}`)
             throw new ApiError(500, 'Something went wrong while generating access and refresh token')
         }
@@ -99,10 +99,13 @@ const sendVerificationEmail = asyncHandler(async(req, res)=>{
     const user = req.user
     const mailStatus = await sendMailToVerify(user)
     if(!mailStatus.success){
+        logger.error(`Email verification failed: ${mailStatus.message || 'Something went wrong while sending verification mail. Please try again.'}`);
         return res
             .status(mailStatus.statusCode || 500)
             .json(new ApiError(mailStatus.statusCode || 500, mailStatus.message || 'Something went wrong while sending verification mail, Please try again'))
     }
+
+    logger.info('Verification email sent successfully to the registered email ID.');
     return res
         .status(201)
         .json(new ApiResponse(201, mailStatus, 'Verification mail sent successfully on registered email-id.'))
@@ -111,6 +114,7 @@ const sendVerificationEmail = asyncHandler(async(req, res)=>{
 const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
     const oldRefreshToken = req.cookies?.refreshToken
     if (!oldRefreshToken) {
+        logger.warn('Refresh token not found in cookies.');
         return res
             .status(400)
             .json(new ApiResponse(400, {forcedLogout: true}, 'FRL'))
@@ -119,6 +123,7 @@ const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
     try {
         const decodedUser = jwt.verify(oldRefreshToken, process.env.REFRESH_TOKEN_SECRET)
         if (!decodedUser){
+            logger.warn('Invalid refresh token: Failed to verify the token.', decodedUser);
             return res
             .status(401)
             .json(new ApiResponse(401, {forcedLogout: true}, 'FRL')) //forced re-login
@@ -126,6 +131,7 @@ const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
 
         const user = await User.findById(decodedUser._id)
         if(!user){
+            logger.warn(`User not found for ID: [${decodedUser._id}].`);
             return res
                 .status(404)
                 .json(new ApiResponse(404, {forcedLogout: true}, 'FRL'))
@@ -149,6 +155,7 @@ const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
         delete plainUser.updatedAt
         delete plainUser.permissions
         
+        logger.info(`Tokens generated successfully for user ID: [${user._id}].`);
         return res
             .status(200)
             .cookie('accessToken', accessToken, options)
@@ -156,7 +163,7 @@ const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
             .json(new ApiResponse(200, {}, 'Tokens refreshed.'))
 
     } catch (error) {
-        console.log(error)
+        logger.error('Invalid refresh token: Failed to verify the token.', error);
         return res
             .status(401)
             .json(new ApiResponse(401, {forcedLogout: true}, 'FRL'))
@@ -165,32 +172,31 @@ const renewAccessAndRefreshToken = asyncHandler(async(req, res)=>{
 
 const registerUser = asyncHandler( async (req, res) => {
     const { username, fullname, email, password } = req.body
-    // console.log(req.file)
     const avatarFilePath = req.file?.path
-    console.log(req.file)
+
     if (!password){
         removeTempFile(avatarFilePath)
-        // throw new ApiError(400, 'All fileds(username, fullname, email, password) are required. ')
+        logger.warn('Validation failed: Password is required.');
         return res
             .status(422)
-            .json(new ApiResponse(422, {}, 'Password is required.'))
+            .json(new ApiError(422, 'Password is required.'))
     }
 
     if (![username, fullname, email].every((field)=> field?.trim()) ){
         removeTempFile(avatarFilePath)
-        // throw new ApiError(400, 'All fields (username, fullname, email, and password) are required.');
+        logger.warn('Validation failed: All fields (username, fullname, email, and password) are required.');
         return res
-        .status(422)
-        .json(new ApiResponse(422, {}, 'All fields (username, fullname, email, and password) are required.'))
+            .status(422)
+            .json(new ApiError(422, 'All fields (username, fullname, email, and password) are required.'))
     }
 
     const existingUser =  await User.findOne({ $or: [{ username }, { email }] })
     if (existingUser) {
         removeTempFile(avatarFilePath)
-        // throw new ApiError(409, 'Username or email already exist')
+        logger.warn('Registration failed: Username or email already exists.');
         return res
-        .status(409)
-        .json(new ApiResponse(409, {}, 'Username or email already exists'))
+            .status(409)
+            .json(new ApiError(409, 'Username or email already exists'))
     }
 
     let avatar = ""
@@ -210,10 +216,10 @@ const registerUser = asyncHandler( async (req, res) => {
 
     if (!user){
         removeTempFile(avatarFilePath)
-        // throw new ApiError(500, 'An error occurred while registering the user in the database.');
+        logger.error('User registration failed: An error occurred while saving to the database.');
         return res
-        .status(500)
-        .json(new ApiResponse(500, {}, 'Something went wrong. Please try again later.'))
+            .status(500)
+            .json(new ApiError(500, 'Something went wrong. Please try again later.'))
     }
 
     const mailStatus = await sendMailToVerify(user)
@@ -221,9 +227,7 @@ const registerUser = asyncHandler( async (req, res) => {
         console.log(mailStatus)
     }
 
-    // TODO
-    // at frontend check user.mailStatus to check status of verification mail sent to user
-    // add symbol or function to display verified user.(Done)
+    logger.info(`User ${user.username} registered successfully.`);
     return res
         .status(201)
         .json(new ApiResponse(201, {}, `User registered successfully`))
@@ -232,6 +236,7 @@ const registerUser = asyncHandler( async (req, res) => {
 const loginUser = asyncHandler( async (req, res) => {
     const { username, password } = req.body
     if (!username){
+        logger.warn('Validation failed: Username or email is required for login.');
         return res
             .status(400)
             .json(new ApiResponse(400, {}, 'Username or email is required for login.'))
@@ -241,16 +246,18 @@ const loginUser = asyncHandler( async (req, res) => {
     // const newEmail = email.toLowerCase().trim()
     const user = await User.findOne({$or: [{username},{email: username}]})
     if (!user){
+        logger.warn(`Login failed: User not found for username or email [${username}].`);
         return res
-        .status(404)
-        .json(new ApiError(404, 'User not found'))
+            .status(404)
+            .json(new ApiError(404, 'User not found'))
     }
 
     const validUser = await user.isValidPassword(password)
     if (!validUser){
+        logger.warn(`Login failed: Invalid password for user [${user.username}].`);
         return res
-        .status(401)
-        .json(new ApiError(401, 'Invalid password'))
+            .status(401)
+            .json(new ApiError(401, 'Invalid password'))
     }
 
     if ( user.permissions.length < rolePermissions[user.role].length ){
@@ -259,6 +266,11 @@ const loginUser = asyncHandler( async (req, res) => {
     }
 
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
+    if ( !accessToken || !refreshToken){
+        return res
+            .status(500)
+            .json(new ApiError(500, 'Something went wrong. Please try again'))
+    }
     
     const plainUser = user.toObject()
     plainUser.accessToken = accessToken
@@ -269,6 +281,7 @@ const loginUser = asyncHandler( async (req, res) => {
     delete plainUser.__v
     delete plainUser.permissions
 
+    logger.info(`User [${plainUser.username}] logged in successfully.`);
     return res
         .status(200)
         .cookie('accessToken', accessToken, options)
@@ -279,56 +292,65 @@ const loginUser = asyncHandler( async (req, res) => {
 const logout = asyncHandler(async(req, res) => {
     const user = req.user
     await User.updateOne({_id: user._id}, {$unset: {refreshToken: ""}})
-        return res
-            .status(200)
-            .cookie('accessToken', "", options)
-            .cookie('refreshToken', "", options)
-            .json(new ApiResponse(200, {}, `${user.username} logged out`))
+    logger.info(`User [${user.username}] logged out successfully.`);
+    return res
+        .status(200)
+        .cookie('accessToken', "", options)
+        .cookie('refreshToken', "", options)
+        .json(new ApiResponse(200, {}, `${user.username} logged out`))
 })
 
 // jwt decode and provide user from id
 const userActivation = asyncHandler(async(req, res)=> {
     const { token } = req.query
     if (!token) {
-        throw new ApiError(404, 'Invalid Authentication Token')
+        logger.warn('Validation failed: Token is required in query parameters.');
+        return res
+            .status(404)
+            .json(new ApiError(404, 'Token is required in query parameters.'))
     }
 
     // decode _id and verify from jwt 
     const decodedToken = await verifyEmailToken(token)
     if (!decodedToken){
+        logger.warn('Email verification failed: Invalid or expired token.');
         return res
-                .status(401)
-                .send(tokenExpiredResponse())
+            .status(401)
+            .send(tokenExpiredResponse())
     }
 // need to modify tokenExpiryResponse template to generic -- 
     const user = await User.findById(decodedToken._id)
     if (!user){
+        logger.warn(`Email verification failed: User not found for ID [${decodedToken._id}].`);
         return res
-                .status(400)
-                .send(tokenExpiredResponse())
+            .status(400)
+            .send(tokenExpiredResponse())
     }
 
     user.isActiveUser = true
     await user.save()
+
+    logger.info(`Email verification successful for user ID: [${user._id}].`);
     return res
-            .status(200)
-            .send(generateVerificationResponse())
+        .status(200)
+        .send(generateVerificationResponse())
 })
 
 const updateAvatar = asyncHandler(async(req, res)=> {
     const avatarFilePath = req.file?.path
     if (!avatarFilePath) {
+        logger.warn('Validation failed: Avatar file path is required.');
         return res
             .status(400)
-            .json(new ApiResponse(400, {}, 'Avatar file required'))
+            .json(new ApiError(400, 'Avatar file required'))
     }
     
     const oldAvatar = req.user.avatar
     const uploadResponse = await uploadOnCloudinary(avatarFilePath, 'image')
     if (!uploadResponse) {
         return res
-        .status(500)
-        .json(new ApiResponse(500, {}, 'Something went wrong. Please try again.'))
+            .status(500)
+            .json(new ApiError(500, 'Something went wrong. Please try again.'))
     }
 
     const user = await User.findByIdAndUpdate(req.user._id, 
@@ -341,24 +363,17 @@ const updateAvatar = asyncHandler(async(req, res)=> {
     ).select('-password -refreshToken -permissions -createdAt -updatedAt -__v')
     
     if (!user){
+        logger.warn(`Avatar update failed: User not found for ID [${req.user._id}].`);
         return res
-        .status(500)
-        .json(new ApiResponse(500, {}, 'Something went wrong. Please try again.'))
+            .status(500)
+            .json(new ApiError(500, 'Something went wrong. Please try again.'))
     }
 
-    await deleteFromCloudinary(oldAvatar, "",  'image')
-    // need logging if failed to clear from cloudinary with url.
-    const plainUser = user.toObject()
-    delete plainUser.refreshToken
-    delete plainUser.password
-    delete plainUser.createdAt
-    delete plainUser.updatedAt
-    delete plainUser.__v
-    delete plainUser.permissions
-
+    deleteFromCloudinary(oldAvatar, "",  'image')
+    logger.info(`Avatar updated successfully for user ID: [${user._id}].`);
     return res
         .status(200)
-        .json(new ApiResponse(200, plainUser, 'Avatar updated successfully'))
+        .json(new ApiResponse(200, user, 'Avatar updated successfully'))
 })
 
 // forgot password through login-jwt-verify

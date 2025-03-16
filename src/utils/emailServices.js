@@ -47,7 +47,7 @@ const sendVerificationLink = async function(emailData){
             message: error.response?.data?.message || 'Something went wrong while sending email, please try again.',
             success: false
         }
-        logger.error(emailData?.receipentEmail, errorData)
+        logger.error(emailData?.receipentEmail, error)
         return errorData
     }
 }

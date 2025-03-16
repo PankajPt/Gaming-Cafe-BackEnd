@@ -11,7 +11,7 @@ const logFormat = printf(({timestamp, level, message, ...metadata})=>{
       timeStyle: 'medium',
       hourCycle: 'h23'
     }).format(new Date(timestamp)).replace(',', '');
-  return `${istTime} [${level.toUpperCase()}]: ${message} ${Object.keys(metadata).length ? JSON.stringify(metadata, null, 2) : ''}`
+  return `${istTime} [${level.toUpperCase()}]: ${message} ${Object.keys(metadata).length ? `\n${JSON.stringify(metadata, null, 2)}` : ''}`
 })
 
 const logger = winston.createLogger({
