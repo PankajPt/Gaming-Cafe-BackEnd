@@ -49,6 +49,7 @@ const deleteFromCloudinary = async function(uri, publicId, type){
         return deleteRes
     } catch (error) {
         logger.error(`[${publicId}]`, error)
+        return false
     }
 }
 

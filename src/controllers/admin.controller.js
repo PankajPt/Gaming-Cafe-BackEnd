@@ -11,6 +11,8 @@ import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js
 import {rolePermissions, permissions} from '../config/constants.js'
 import fs from 'fs'
 import { isValidObjectId } from "mongoose";
+import { logger } from "../utils/logger.js";
+
 
 const verifyUserPermissions = (permissionData, res) => {
     const { userPermissions, requiredPermission } = permissionData;
@@ -19,10 +21,12 @@ const verifyUserPermissions = (permissionData, res) => {
         res.status(403).json(new ApiError(403, 'Access denied: The user does not have permission to view this page.'));
         return false;
     }
+    logger.info(`Access granted: User has the required permission [${requiredPermission}] to view this page.`);
     return true;
 };
 
 const removeTempFile = async(file) => {
+    logger.info(`Removing file: [${file}] from public/temp directory.`);
     await file && fs.unlinkSync(file)
 }
 
@@ -34,18 +38,22 @@ const viewUsers = asyncHandler(async(req, res)=>{
         userPermissions: req.user.permissions
     }
     const isVerified = verifyUserPermissions(permissionData, res)
-    if (!isVerified){
-        return
+    if (!isVerified) {
+        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
+        return;
     }
+    
 
     const users = await User.find({ role: {$ne: 'admin'}}).select('-password -permissions -createdAt -updatedAt -__v')
     if (!users){
+        logger.warn('No users found.');
         return res
             .status(404)
-            .json(new ApiResponse(404, {}, 'User not found'))
-        // throw new ApiError(404, 'No registered users found');
+            .json(new ApiError(404, 'Users not found'))
+
     }
 
+    logger.info('Retrieved all user details successfully.');
     return res
         .status(200)
         .json(new ApiResponse(200, users, 'Users fetch successfully'))
@@ -58,16 +66,17 @@ const changeUserRole = asyncHandler(async(req, res)=> {
     }
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
+        logger.warn(`Unauthorized access attempt to changeUserRole by: [${req.user?.username}]`, permissionData);
         return
     }
     const { userId, newRole } = req.body
     if(!(userId && newRole)){
-        // throw new ApiError(400, 'Username cannot be blank');
+        logger.warn('Validation failed: Username cannot be blank.');
         return res
             .status(400)
-            .json(new ApiResponse(400, {}, 'userId and role are required.'))
+            .json(new ApiError(400, 'userId and role are required.'))
     }
-    // const modifiedUsername = username.toLowerCase().trim()
+
     const user = await User.findByIdAndUpdate( userId,
         {
             $set: {
@@ -81,12 +90,13 @@ const changeUserRole = asyncHandler(async(req, res)=> {
     ).select('-password -refreshToken')
 
     if(!user){
-        // throw new ApiError(404, 'User not found')
+        logger.warn(`User not found. ID: [${userId}]`);
         return res
             .status(404)
-            .json(new ApiResponse(404, {}, 'User not found'))
+            .json(new ApiError(404, 'User not found'))
     }
 
+    logger.info(`${user.username} permissions changed to ${newRole}`)
     return res
         .status(200)
         .json(new ApiResponse(200, user, `${user.username} permissions changed to ${newRole}`))
@@ -95,9 +105,6 @@ const changeUserRole = asyncHandler(async(req, res)=> {
 // add new games
 const addNewGame = asyncHandler(async(req, res)=>{
     const { title, description } = req.body
-    // const fileName = req.file?.filename
-    // const imageFilePath = path.join(process.cwd(), 'public', 'temp', fileName)
-    // const imageFilePath = path.resolve(req.file.path)
     const imageFilePath = req.file?.path
 
     const permissionData = {
@@ -106,21 +113,23 @@ const addNewGame = asyncHandler(async(req, res)=>{
     }
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
+        logger.warn(`Unauthorized access attempt to addNewGame by: [${req.user?.username}]`, permissionData);
         return
     }
 
-    if (!(title && description && imageFilePath)){
+    if (!title || !description || !imageFilePath){
+        logger.warn('Validation failed: Title, description, and image file path are required.');
         await removeTempFile(imageFilePath)
         return res
             .status(400)
-            .json(new ApiResponse(400, {}, 'All fields(title, description, image) are required.'))
+            .json(new ApiError(400, 'All fields(title, description, image) are required.'))
     }
 
     const cloudiResponse = await uploadOnCloudinary(imageFilePath, 'image')
     if(!cloudiResponse){
         return res
         .status(500)
-        .json(new ApiResponse(500, {}, 'Something went wrong, please try again.'))
+        .json(new ApiError(500, 'Something went wrong, please try again.'))
     }
 
     const game = await Catalogue.create(
@@ -138,10 +147,9 @@ const addNewGame = asyncHandler(async(req, res)=>{
         await deleteFromCloudinary(cloudiResponse.url, cloudiResponse.public_id, 'image')
         return res
         .status(500)
-        .json(new ApiResponse(500, {}, 'Something went wrong, please try again.'))
-        
+        .json(new ApiError(500, 'Something went wrong, please try again.'))
     }
-
+    logger.info(`Game added to catalog successfully: [${game.title}].`);
     return res
         .status(200)
         .json(new ApiResponse(200, game, `Game ${game.title} added in catalogue successfully.`))
@@ -156,27 +164,27 @@ const deleteGame = asyncHandler(async(req, res)=>{
     }
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
+        logger.warn(`Unauthorized access attempt to deleteGame by: [${req.user?.username}]`, permissionData);
         return
     }
     if(!gameId){
-        // throw new ApiError(400, 'Game id is required to perform this operation')
+        logger.warn('Operation failed: Game ID is required.');
         return res
         .status(400)
-        .json(new ApiResponse(400, {}, 'Game id is required to perform this operation'))
+        .json(new ApiError(400, 'Game id is required to perform this operation'))
     }
 
     const destroyGame = await Catalogue.findOneAndDelete({_id: gameId}).select('thumbnail')
-    console.log(destroyGame)
     if (!destroyGame){
-        // throw new ApiError(404, 'No documents matched the filter')
+        logger.warn('Game not found in catalog.');
         return res
         .status(404)
-        .json(new ApiResponse(404, {}, 'Game not found in catalogue.'))
+        .json(new ApiError(404, 'Game not found in catalogue.'))
     }
 
     await deleteFromCloudinary("", destroyGame.publicId, 'image')
     const gameCatalogue = await Catalogue.find().select('-owner -createdAt -updatedAt -__v')
-
+    logger.info(`Game deleted successfully: [${gameCatalogue.title}].`);
     return res
         .status(200)
         .json(new ApiResponse(200, gameCatalogue, 'Game deleted successfully'))
@@ -192,6 +200,7 @@ const createEvent = asyncHandler(async(req, res)=>{
     }
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
+        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
         return
     }
 
@@ -249,6 +258,7 @@ const deleteEvent = asyncHandler(async(req, res)=>{
     }
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
+        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
         return
     }
 
@@ -284,6 +294,7 @@ const createSlot = asyncHandler(async(req, res) => {
 
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
+        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
         return
     }
 
@@ -323,6 +334,7 @@ const getAllBookedSlots = asyncHandler(async(req, res)=>{
     }
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
+        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
         return
     }
 
@@ -388,6 +400,7 @@ const clearBooking = asyncHandler(async(req, res)=> {
     }
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
+        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
         return
     }
     const { bookingId } = req.params
@@ -423,6 +436,7 @@ const deleteSlotById = asyncHandler(async(req, res) => {
 
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
+        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
         return
     }
 
@@ -453,6 +467,7 @@ const deleteSlotsByDate = asyncHandler(async(req, res)=>{
 
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
+        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
         return
     }
 
@@ -485,6 +500,7 @@ const createSubscriptionPlan = asyncHandler(async(req, res)=>{
 
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
+        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
         return
     }
 
@@ -556,6 +572,7 @@ const deleteSubscriptionPlan = asyncHandler(async(req, res)=> {
     }
     const isVerified = verifyUserPermissions(permissionData, res)
     if (!isVerified){
+        logger.warn(`Unauthorized access attempt to viewUsers by: [${req.user?.username}]`, permissionData);
         return
     }
 

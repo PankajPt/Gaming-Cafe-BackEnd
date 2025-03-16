@@ -1,7 +1,6 @@
 import jwt from 'jsonwebtoken'
 import User from '../models/user.model.js'
 import asyncHandler from '../utils/asyncHandler.js'
-import ApiError from '../utils/apiError.js'
 import ApiResponse from '../utils/apiResponse.js'
 import { logger } from '../utils/logger.js'
 
@@ -11,39 +10,35 @@ const verifyJWT = asyncHandler(async (req, res, next) => {
     try {
         const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "")
         if (!token) {
-            logger.warn('Access token is missing.')
+            logger.warn('Access token is missing.', { forcedLogout: true })
             return res
                 .status(401)
-                .json(new ApiResponse(401, {}, 'Unauthorized request.'))
-            // throw new ApiError(401, 'Unauthorized request')
+                .json(new ApiResponse(401, { forcedLogout: true }, 'Unauthorized request.'))
         }
     
-        const decodedToken = await jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
+        const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
         if (!decodedToken) {
-            logger.error('Invalid Access Token')
+            logger.error('Invalid Access Token', { forcedLogout: true })
             return res
                 .status(401)
-                .json(new ApiResponse(401, {}, 'Invalid Access Token'))
-            // throw new ApiError(401, 'Invalid Access Token')
+                .json(new ApiResponse(401, { forcedLogout: true }, 'Invalid Access Token'))
         }
     
         const user = await User.findById(decodedToken?._id).select('-password -refreshToken')
         if (!user) {
-            logger.error(`Database query failed for user: ${decodedToken._id}`)
+            logger.error(`Database query failed for user: ${decodedToken._id}`, { forcedLogout: true })
             return res
                 .status(404)
-                .json(new ApiResponse(404, {}, 'User not found.'))
-            // throw new ApiError(401, 'User not found')
+                .json(new ApiResponse(404, { forcedLogout: true }, 'User not found.'))
         }
         logger.info(`Access Token verified for user: ${user.username}`)
         req.user = user
         next()
     } catch (error) {
-        logger.error(`${error.name}: ${error.message}`)
+        logger.error("", error)
         return res
             .status(401)
-            .json(new ApiResponse(401, {}, error.message || `Invalid Access Token`))
-        // throw new ApiError(401, error?.message || `Invalid Access Token`)   
+            .json(new ApiResponse(401, { forcedLogout: true }, error.message || `Invalid Access Token`))
     }
 })
 
