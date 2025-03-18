@@ -1,6 +1,6 @@
 import { LOGIN_PAGE } from '../config/constants.js'
 
-const generateVerificationResponse = () => {
+const generateVerificationResponse = (data) => {
     return `<!DOCTYPE html>
                 <html lang="en">
                 <head>
@@ -56,8 +56,8 @@ const generateVerificationResponse = () => {
                 </head>
                 <body>
                     <div class="container">
-                        <h1>Account Verified Successfully</h1>
-                        <p>Please log in using your username and password.</p>
+                        <h1>${data?.title || 'Verification Completed'}</h1>
+                        <p>${data?.description || 'Please log in using your username and password.'}</p>
                         <p class="redirect">Redirecting to the login page in 5 seconds... If not, <a href="${LOGIN_PAGE}">click here</a>.</p>
                     </div>
                 </body>
