@@ -35,10 +35,15 @@ const verifyJWT = asyncHandler(async (req, res, next) => {
         req.user = user
         next()
     } catch (error) {
-        logger.error("", error)
+        const errorData = {
+            name: error?.name,
+            message: error?.message,
+            statusCode: error?.statusCode
+        }
+        logger.error("[JWT Verify]", errorData)
         return res
             .status(401)
-            .json(new ApiResponse(401, { forcedLogout: true }, error.message || `Invalid Access Token`))
+            .json(new ApiResponse(401, { forcedLogout: true }, error?.message || `Invalid Access Token`))
     }
 })
 

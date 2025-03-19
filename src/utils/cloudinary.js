@@ -21,7 +21,12 @@ const uploadOnCloudinary = async function(file, type){
         logger.info(`File uploaded successfully on cloudinary`, response)
         return response
     } catch (error) {
-        logger.error('Appear while uploading on cloudinary', error)
+        const errorData = {
+            name: error?.name,
+            message: error?.message,
+            statusCode: error?.statusCode
+        }
+        logger.error('Appear while uploading on cloudinary', errorData)
         return false
     } finally {
         await removeTempFile(file)
@@ -48,7 +53,11 @@ const deleteFromCloudinary = async function(uri, publicId, type){
         logger.info(`File ${publicId} is removed from cloudinary`)
         return deleteRes
     } catch (error) {
-        logger.error(`[${publicId}]`, error)
+        const errorData = {
+            name: error?.name,
+            message: error?.message
+        }
+        logger.error(`[${publicId}]`, errorData)
         return false
     }
 }

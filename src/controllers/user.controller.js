@@ -16,6 +16,7 @@ import { sendVerificationLink, verifyEmailToken } from '../utils/emailServices.j
 import { generateVerificationResponse, tokenExpiredResponse, submitPasswordForm } from '../templates/index.template.js'
 import { rolePermissions } from '../config/constants.js'
 import { logger } from '../utils/logger.js'
+import { title } from 'process'
 
 // Local
 // const  options = {
@@ -79,6 +80,7 @@ const generateRandomKey = (userId)=>{
     return randomKey
 }
 // function to create send mail
+// need to update
 const sendMailToVerify = async(user) => {
     if (!user){
         logger.warn('User not specified')
@@ -222,6 +224,8 @@ const registerUser = asyncHandler( async (req, res) => {
             .json(new ApiError(500, 'Something went wrong. Please try again later.'))
     }
 
+    logger.info(`User [${user.username}] data saved in DB. Sending account verification link...`);
+
     const mailStatus = await sendMailToVerify(user)
     if(!mailStatus.success){
         console.log(mailStatus)
@@ -331,9 +335,13 @@ const userActivation = asyncHandler(async(req, res)=> {
     await user.save()
 
     logger.info(`Email verification successful for user ID: [${user._id}].`);
+    const data = {
+        title: 'Account Verified Successfully',
+        description: 'Please log in using your username and password.',
+    }
     return res
         .status(200)
-        .send(generateVerificationResponse())
+        .send(generateVerificationResponse(data))
 })
 
 const updateAvatar = asyncHandler(async(req, res)=> {
@@ -380,31 +388,34 @@ const updateAvatar = asyncHandler(async(req, res)=> {
 const updatePasswordWithJWT = asyncHandler(async(req, res)=>{
     const { current, newPassword, confirm } = req.body
     if (!(current && newPassword && confirm)){
+        logger.warn('Validation failed: All fields (current password, new password, confirm password) are required.');
         return res
-        .status(400)
-        .json(new ApiResponse(401, {}, 'All fields(current password, new password, confirm password) are required.'))
+            .status(400)
+            .json(new ApiError(401, 'All fields(current password, new password, confirm password) are required.'))
     }
 
     if ( newPassword !== confirm ){
+        logger.warn('Validation failed: New password and confirm password do not match.');
         return res
-        .status(400)
-        .json(new ApiResponse(400, {}, 'New and cofirm password not match'))
+            .status(400)
+            .json(new ApiError(400, 'New and cofirm password not match'))
     }
     const user = await User.findById(req.user._id)
     const validUser = await user.isValidPassword(current)
     if(!validUser){
+        logger.warn(`Password update failed: Incorrect current password for user ID [${user._id}].`);
         return res
             .status(401)
-            .json(new ApiResponse(401, {}, 'Invalid current password'))
+            .json(new ApiError(401, 'Invalid current password'))
     }
 
     user.password = newPassword
     const savePassword = await user.save()
-
     if(!savePassword){
+        logger.error(`Password update failed: Unable to save new password for user ID [${user._id}].`);
         return res
             .status(500)
-            .json(new ApiResponse(500, {}, 'Something went wrong while updating password. Please try again'))
+            .json(new ApiError(500, 'Something went wrong while updating password. Please try again'))
     }
 
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
@@ -416,6 +427,7 @@ const updatePasswordWithJWT = asyncHandler(async(req, res)=>{
     delete plainUser.__v
     delete plainUser.permissions
 
+    logger.info(`Password updated successfully for user ID: [${user._id}].`);
     return res
         .status(200)
         .cookie('accessToken', accessToken, options)
@@ -428,20 +440,22 @@ const updateEmailBeforeVerification = asyncHandler(async (req, res) => {
     const user = req.user
     // try {
         if (user.isActiveUser) {
+            logger.warn(`Email update failed: User [${user.username}] is already active and cannot change email ID now.`);
             return res
                 .status(400)
                 .json(new ApiError(400, "Already active user. Unable to change email ID now."));
         }
 
         const { emailId } = req.body;
-
         if (!emailId) {
+            logger.warn('Validation failed: Email ID is required.');
             return res
                 .status(400)
                 .json(new ApiError(400, "Email ID cannot be blank."));
         }
 
         if (emailId === user.email) {
+            logger.warn(`Email update failed: New email ID is the same as the current email [${user.email}].`);
             return res
                 .status(400)
                 .json(new ApiError(400, "You're already using this email. Please enter a different email address."));
@@ -454,6 +468,7 @@ const updateEmailBeforeVerification = asyncHandler(async (req, res) => {
         ).select("_id username email fullname avatar role isActiveUser");
 
         if (!updatedUser) {
+            logger.warn(`Email update failed: Unable to update email for user ID [${user._id}].`);
             return res
                 .status(500)
                 .json(new ApiError(500, "Something went wrong while updating the email. Please try again."));
@@ -464,20 +479,10 @@ const updateEmailBeforeVerification = asyncHandler(async (req, res) => {
             console.log(mailStatus)
         }
 
+        logger.info(`Email updated successfully for user ID: [${updatedUser._id}], new email: [${updatedUser.email}].`);
         return res
             .status(200)
             .json(new ApiResponse(200, updatedUser, "Your email ID has been successfully updated."));
-
-    // } catch (error) {
-    //     if (error.code === 11000) {
-    //         return res
-    //             .status(409)
-    //             .json(new ApiError(409, "This email is already registered with another user."));
-    //     }
-    //     return res
-    //         .status(500)
-    //         .json(new ApiError(500, "Internal Server Error. Please try again later."));
-    // }
 });
 
 
@@ -485,18 +490,18 @@ const updateEmailBeforeVerification = asyncHandler(async (req, res) => {
 const sendPasswordResetOnMail = asyncHandler(async(req, res)=>{
     const { email } = req.body
     if(!email){
-        // throw new ApiError(400, 'Email-ID is required to reset password.')
+        logger.warn('Password reset failed: Email ID is required.');
         return res
             .status(400)
-            .json(new ApiResponse(400, {}, 'Email-ID is required to reset the password.'))
+            .json(new ApiError(400, 'Email-ID is required to reset the password.'))
     }
 
     const user = await User.findOne({email: email})
     if(!user){
-        // throw new ApiError(404, 'User is not registered.')
+        logger.warn('Password reset failed: User is not registered.');
         return res
             .status(404)
-            .json(new ApiResponse(404, {}, 'User is not registered.'))
+            .json(new ApiError(404, 'User is not registered.'))
     }
 
     const sentMail = await sendVerificationLink(new ApiEmail(
@@ -509,46 +514,53 @@ const sendPasswordResetOnMail = asyncHandler(async(req, res)=>{
     )
 
     if(!sentMail){
-        // throw new ApiError(500, 'Something went wrong while sending reset email. Please try again after some time.')
         return res
             .status(500)
-            .json(new ApiResponse(500, {}, 'An error occurred while sending the password reset email. Please try again later.'))
+            .json(new ApiError(500, 'An error occurred while sending the password reset email. Please try again later.'))
     }
 
+    logger.info(`Password reset link sent successfully to email: [${user.email}].`);
     return res
         .status(200)
         .json(new ApiResponse(200, {}, `Password reset link send to ${email}, please check your inbox.`))
 })
 
+// modification required
 const sendPasswordSubmitForm = asyncHandler(async(req, res)=>{
     const { token } = req.query
     if(!token){
-        // need to send html page to user
+        logger.warn('Password reset failed: Token is required in query parameters.');
         throw new ApiError(400, 'Token cannot be blank')
     }
 
     const decodedToken = verifyEmailToken(token)
     if(!decodedToken){
+        logger.warn('Password reset failed: Invalid or expired token.');
         // return link expired message.
         throw new ApiError(401, 'Token Expired')
     }
 
     const shortLiveKey = generateRandomKey(decodedToken._id)
+    logger.info(`Short-lived key generated successfully for user ID: [${decodedToken._id}].`);
+    logger.info(`Short-lived key set in cookie and password reset form sent for user ID: [${decodedToken._id}].`);
     return res
         .status(202)
         .cookie('shortLiveKey', shortLiveKey, {httpOnly: true, secure: true, maxAge: 600000})
         .send(submitPasswordForm())
 })
 
+// modification required
 const updatePasswordWithEmail = asyncHandler(async(req, res)=>{
     const { shortLiveKey } = req.cookies
     const { newPassword, confirmPassword } = req.body
 
-    if(!(newPassword && confirmPassword)){
+    if(!newPassword || !confirmPassword){
+        logger.warn('Password reset failed: All fields (newPassword, confirmPassword) are required.');
         throw new ApiError(400, 'All fields(newPassword, confirmPassword) are required.')
     }
 
     if(!shortLiveKey){
+        logger.warn('Password reset failed: Short-lived key is missing in cookies.');
         return res
             .status(400)
             .send(tokenExpiredResponse())
@@ -556,6 +568,7 @@ const updatePasswordWithEmail = asyncHandler(async(req, res)=>{
 
     const decodedToken = await verifyEmailToken(shortLiveKey)
     if (!decodedToken){
+        logger.warn('Password reset failed: Invalid or expired short-lived key.');
         return res
             .status(403)
             .send(tokenExpiredResponse())
@@ -563,28 +576,36 @@ const updatePasswordWithEmail = asyncHandler(async(req, res)=>{
 
     const user = await User.findById(decodedToken._id)
     if(!user){
+        logger.warn(`Password reset failed: User not found for ID [${decodedToken._id}].`);
         throw new ApiError(404, 'User not found')
     }
     user.password = newPassword
     const isSaved = await user.save()
     if (!isSaved){
+        logger.error(`Password reset failed: Unable to save new password for user ID [${user._id}].`);
         throw new ApiError(500, 'Something went wrong while updating password. Please try again after some time.')
     }
 
+    logger.info(`Password reset successfully for user ID: [${user._id}].`);
+    const data = {
+        title: 'Password updated successfully...',
+        description: 'Please log in using your username and password.'
+    }
     return res
         .status(200)
         .cookie('shortLiveKey', "", options)
-        .send(generateVerificationResponse())
+        .send(generateVerificationResponse(data))
 })
 
 const getEvents = asyncHandler(async(_, res)=>{
     const events = await Event.find().select("-createdAt -updatedAt -__v");
     if(!events){
+        logger.error('Event retrieval failed: No events found.');
         return res 
             .status(500)
             .json(new ApiError(500, 'Something went wrong, please try again'))
     }
-
+    logger.info(`Events retrieved successfully. Total events: ${events.length}.`);
     return res
         .status(200)
         .json(new ApiResponse(200, events, 'Events fetched successfully'))
@@ -593,11 +614,13 @@ const getEvents = asyncHandler(async(_, res)=>{
 const getCatalogue = asyncHandler(async(_, res)=>{
     const gameCatalogue = await Catalogue.find().select('-owner -createdAt -updatedAt -__v')
     if(!gameCatalogue){
+        logger.error('Game catalogue retrieval failed: No games found.');
         return res 
-        .status(500)
-        .json(new ApiResponse(500, {}, 'Something went wrong, please try again'))
+            .status(500)
+            .json(new ApiError(500, 'Something went wrong, please try again'))
     }
 
+    logger.info(`Game catalogue retrieved successfully. Total games: ${gameCatalogue.length}.`);
     return res
         .status(200)
         .json(new ApiResponse(200, gameCatalogue, 'Game catalogue fetched successfully.'))
@@ -606,11 +629,12 @@ const getCatalogue = asyncHandler(async(_, res)=>{
 const getPlans = asyncHandler ( async( _, res ) => {
     const plans = await SubscriptionModels.find().select('-createdAt -updatedAt -__v')
     if(!plans){
+        logger.error('Subscription plans retrieval failed: No plans found.');
         return res 
-        .status(500)
-        .json(new ApiResponse(500, {}, 'Something went wrong, please try again'))
+            .status(500)
+            .json(new ApiError(500, 'Something went wrong, please try again'))
     }
-
+    logger.info(`Subscription plans retrieved successfully. Total plans: ${plans.length}.`);
     return res
         .status(200)
         .json(new ApiResponse(200, plans, 'Subscription details fetched successfully.'))
@@ -619,6 +643,7 @@ const getPlans = asyncHandler ( async( _, res ) => {
 const bookSlot = asyncHandler(async(req, res)=>{
     const { date, timeFrame } = req.body
     if ( !date || !timeFrame){
+        logger.warn('Slot creation failed: Both date and timeFrame are required.');
         return res
             .status(400)
             .json(new ApiError(400, 'All fields(date "yyyy-mm-dd", timeFrame "09AM-10AM") are required.'))
@@ -626,15 +651,17 @@ const bookSlot = asyncHandler(async(req, res)=>{
 
     let slot = await Slot.findOne({date: new Date(date), timeFrame})
     if(!slot){
+        logger.warn(`Slot not found for date: ${date}, timeFrame: ${timeFrame}. Creating required slots...`);
         slot = new Slot({date: new Date(date), timeFrame})
         await slot.save()
     }
 
     const existingBookingsCount = await Booking.countDocuments({slotId: slot._id})
     if ( existingBookingsCount >= slot.maxBookings ){
+        logger.warn(`Booking failed: Slot [${slot._id}] has reached its maximum limit of ${slot.maxBookings} bookings.`);
         return res
             .status(409)
-            .json(new ApiResponse(409, {}, `${timeFrame} Slot is full.`))
+            .json(new ApiError(409, `${timeFrame} Slot is full.`))
     }
 
     const booking = await Booking.create(
@@ -646,11 +673,13 @@ const bookSlot = asyncHandler(async(req, res)=>{
     )
 
     if(!booking){
+        logger.error(`Booking creation failed: Unable to create booking for slot [${slot._id}] and user [${req.user?._id}].`);
         return  res
             .status(500)
             .json(new ApiError(500, 'Something went wrong.'))
     }
-
+    
+    logger.info(`Booking created successfully for user [${req.user?._id}] in slot [${slot._id}].`);
     return res
         .status(200)
         .json(new ApiResponse(200, booking, `${timeFrame} Slot booked succesfully.`))

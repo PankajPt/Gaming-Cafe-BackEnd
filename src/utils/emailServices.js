@@ -33,6 +33,7 @@ const sendVerificationLink = async function(emailData){
     
     try {
         const response = await axios.post(BREVO_URI, data, config)
+        logger.info(response)
         const responseData = {
             statusCode: response.status,
             message: response.statusText,
@@ -47,7 +48,7 @@ const sendVerificationLink = async function(emailData){
             message: error.response?.data?.message || 'Something went wrong while sending email, please try again.',
             success: false
         }
-        logger.error(emailData?.receipentEmail, error)
+        logger.error(emailData?.receipentEmail, errorData)
         return errorData
     }
 }
