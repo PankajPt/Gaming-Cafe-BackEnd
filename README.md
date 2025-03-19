@@ -67,9 +67,13 @@ RANDOM_KEY_EXPIRY=3600
 BREVO_API_KEY=your_brevo_api_key
 CLOUDINARY_URL=your_cloudinary_url
 MADGEAR_EMAIL=your@email.com
+BACKEND_BASE_URI=http://your-backend-uri:7557/api/v1
+KEEP_ALIVE_PORT=12345
+LOG_LEVEL=INFO
 ```
 Ensure you update the actual `.env` file with real credentials before running the application.
 Create a `.env` file in the root directory and add the required environment variables:
+Log levels: (INFO, WARN, ERROR)
 ```
 PORT=
 CORS_ORIGIN=
@@ -86,6 +90,9 @@ RAMDOM_KEY_EXPIRY=
 BREVO_API_KEY=
 CLOUDINARY_URL=
 MADGEAR_EMAIL=
+BACKEND_BASE_URI=
+KEEP_ALIVE_PORT=
+LOG_LEVEL=
 ```
 
 ## Features
