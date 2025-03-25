@@ -1,6 +1,6 @@
-# Madgear Gaming Cafe - Backend
+# Gaming Cafe - Backend
 
-Madgear Gaming Cafe backend handles authentication, user management, event booking, and other API functionalities. Built using Node.js, Express, and MongoDB.
+Gaming Cafe backend handles authentication, user management, event booking, and other API functionalities. Built using Node.js, Express, and MongoDB.
 
 ## Project Structure
 ```
