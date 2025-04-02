@@ -30,9 +30,11 @@ pingServer() {
 
     # Print status with color
     if [[ "$STATUS" == "OK" ]]; then
-        echo -e "[\e[34m$TIMESTAMP\e[0m] Heart_Beat[\e[36m$SEQUENCE_NUMBER\e[0m]: \e[32mSTATUS: OK\e[0m"
+		R_TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+        echo -e "[\e[34m$R_TIMESTAMP\e[0m] Heart_Beat[\e[36m$SEQUENCE_NUMBER\e[0m]: \e[32mSTATUS: OK\e[0m"
     else
-        echo -e "[\e[34m$TIMESTAMP\e[0m] Heart_Beat[\e[36m$SEQUENCE_NUMBER\e[0m]: \e[31mSTATUS: FAILED\e[0m"
+		R_TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+        echo -e "[\e[34m$R_TIMESTAMP\e[0m] Heart_Beat[\e[36m$SEQUENCE_NUMBER\e[0m]: \e[31mSTATUS: FAILED\e[0m"
     fi
 }
 

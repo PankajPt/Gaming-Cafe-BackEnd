@@ -20,7 +20,8 @@ const permissions = {
     ADD_SLOT: 'add_slot',
     DELETE_SLOT: 'delete_slot',
     VIEW_BOOKINGS: 'view_bookings',
-    CLEAR_BOOKING: 'clear_booking'
+    CLEAR_BOOKING: 'clear_booking',
+    ASSIGN_PLAN: 'assign_plan'
 }
 const rolePermissions = {
     user: [],
@@ -45,7 +46,8 @@ const rolePermissions = {
         permissions.ADD_SLOT,
         permissions.DELETE_SLOT,
         permissions.VIEW_BOOKINGS,
-        permissions.CLEAR_BOOKING
+        permissions.CLEAR_BOOKING,
+        permissions.ASSIGN_PLAN
     ]
 }
 

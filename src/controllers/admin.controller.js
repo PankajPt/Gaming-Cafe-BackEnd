@@ -7,6 +7,7 @@ import Catalogue from '../models/catalogue.model.js'
 import SubscriptionModels from '../models/subscription.model.js'
 import Slot from "../models/slot.model.js";
 import Booking from "../models/booking.model.js";
+import UserPlan from "../models/userPlan.model.js";
 import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js'
 import {rolePermissions, permissions} from '../config/constants.js'
 import fs from 'fs'
@@ -85,7 +86,8 @@ const changeUserRole = asyncHandler(async(req, res)=> {
             }
         },
         {
-            new: true
+            new: true,
+            runValidators: true
         }
     ).select('-password -refreshToken')
 
@@ -636,8 +638,79 @@ const deleteSubscriptionPlan = asyncHandler(async(req, res)=> {
 
 })
 
+const assignPlanToUser = asyncHandler(async(req, res)=>{
+    const permissionData = {
+        requiredPermission: permissions.ASSIGN_PLAN,
+        userPermissions: req.user.permissions
+    }
+    const isVerified = verifyUserPermissions(permissionData, res)
+    if (!isVerified){
+        logger.warn(`Unauthorized access attempt to assignPlanToUser by: [${req.user?.username}]`, permissionData);
+        return
+    }
+    const { userId, plan } = req.body
+    if(!userId || !['monthly', 'quarterly', 'yearly'].includes(plan?.trim().toLowerCase())){
+        logger.warn("Validation failed: UserId and Plan are required. Allowed plan values: monthly, quarterly, yearly.");
+        return res
+            .status(400)
+            .json(new ApiError(400, "Validation failed: UserId and Plan are required. Allowed plan values: monthly, quarterly, yearly."))
+    }
+
+    if (!isValidObjectId(userId)){
+        logger.warn('Validation failed: Invalid user ID.');
+        return res
+            .status(400)
+            .json(new ApiError(400, 'Invalid user id.'))
+    }
+
+    const existingPlan = await UserPlan.find({owner: userId}, {expiresAt: 1}).sort({_id: -1})
+    if ( !existingPlan ){
+        logger.info("No existing plan found for the user.");
+        const assignNewPlan = await UserPlan.create(
+            {
+                owner: userId,
+                plan,
+                startDate: new Date(Date.now()),
+            }
+        )
+        
+        if (!assignNewPlan){
+            logger.error("Failed to assign new plan to the user.");
+            return res
+                .status(500)
+                .json(new ApiError(500, 'Failed to assign new plan to the user.'))
+        }
+
+        logger.info(`Plan [${plan}] assigned to user: ${userId}`);
+        return res
+            .status(201)
+            .json(new ApiResponse(201, assignNewPlan, `Plan [${plan}] assigned to user: ${userId}`))
+    } else {
+        logger.info("Existing plan found for the user.");
+        const assignNewPlan = await UserPlan.create(
+            {
+                owner: userId,
+                plan,
+                startDate: existingPlan[0]?.expiresAt,
+            }
+        )
+        
+        if (!assignNewPlan){
+            logger.error("Failed to assign new plan to the user.");
+            return res
+                .status(500)
+                .json(new ApiError(500, 'Failed to assign new plan to the user.'))
+        }
+
+        logger.info(`Plan [${plan}] assigned to user: ${userId}`);
+        return res
+            .status(201)
+            .json(new ApiResponse(201, assignNewPlan, `Plan [${plan}] assigned to user: ${userId}`))
+    }
+})
+
 export { changeUserRole, addNewGame, deleteGame, 
     createEvent, deleteEvent, createSubscriptionPlan, 
     viewUsers, deleteSubscriptionPlan, createSlot, 
     deleteSlotById, deleteSlotsByDate, getAllBookedSlots,
-    clearBooking }
+    clearBooking, assignPlanToUser }

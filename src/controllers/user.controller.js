@@ -16,7 +16,6 @@ import { sendVerificationLink, verifyEmailToken } from '../utils/emailServices.j
 import { generateVerificationResponse, tokenExpiredResponse, submitPasswordForm } from '../templates/index.template.js'
 import { rolePermissions } from '../config/constants.js'
 import { logger } from '../utils/logger.js'
-import { title } from 'process'
 
 // Local
 // const  options = {
@@ -366,7 +365,8 @@ const updateAvatar = asyncHandler(async(req, res)=> {
             avatar: uploadResponse.url
         },
         {
-            new: true
+            new: true,
+            runValidators: true
         }
     ).select('-password -refreshToken -permissions -createdAt -updatedAt -__v')
     
@@ -812,13 +812,13 @@ const keepAlive = asyncHandler(async(req, res) => {
         console.log(`[${new Date().toISOString()}] Heart_Beat_RES-[]: SENT OK`)
         return res
             .status(400)
-            .json(new ApiResponse(400, {status: 'OK'}, 'SEQ_NUM is missing'))
+            .json(new ApiResponse(400, {status: 'OK'}, 'SEQ_NUM is missing-Server is up and running.'))
     }
 
     console.log(`[${new Date().toISOString()}] Heart_Beat_RES-[${SEQ_NUM}]: SENT OK`)    
     return res
         .status(200)
-        .json(new ApiResponse(200, { SEQ_NUM, status: 'OK' }, `${SEQ_NUM}: OK`))
+        .json(new ApiResponse(200, { SEQ_NUM, status: 'OK' }, `Server is up and running.`))
 })
 
 export {
