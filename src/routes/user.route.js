@@ -7,7 +7,7 @@ import {
     getEvents, getCatalogue, renewAccessAndRefreshToken, 
     getPlans, bookSlot, viewBookedSlots,
     deleteBookedSlot, getAvailableSlots, keepAlive,
-    updateEmailBeforeVerification, } from '../controllers/user.controller.js'
+    updateEmailBeforeVerification, fetchUserSubscription } from '../controllers/user.controller.js'
 import { uploadUserFile } from '../middleware/multer.middleware.js'
 import { verifyJWT } from '../middleware/auth.middleware.js'
 // import { upload } from '../middleware/multer.middleware.js'
@@ -38,5 +38,6 @@ userRouter.route('/send-verification-link').get(sendVerificationEmail)
 userRouter.route('/book-slot').post(bookSlot)
 userRouter.route('/view-slots').get(viewBookedSlots)
 userRouter.route('/delete-slot/:bookingId').delete(deleteBookedSlot)
+userRouter.route('/active-plan').get(fetchUserSubscription)
 
 export default userRouter

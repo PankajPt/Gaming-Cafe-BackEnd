@@ -17,7 +17,7 @@ const userSubscriptionMappingSchema = new Schema(
             enum: ['monthly', 'quarterly', 'yearly'],
             required: true
         },
-        startDate: {
+        startsAt: {
             type: Date,
             default: Date.now,
             required: true
@@ -40,7 +40,7 @@ userSubscriptionMappingSchema.pre('save', function (next) {
     } else {
         expirationTime = defaultDuration
     }
-    this.expiresAt = new Date( this.startDate.getTime() + expirationTime )
+    this.expiresAt = new Date( this.startsAt.getTime() + expirationTime )
     next()
 })
 

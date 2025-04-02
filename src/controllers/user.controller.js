@@ -11,6 +11,7 @@ import Catalogue from '../models/catalogue.model.js'
 import SubscriptionModels from '../models/subscription.model.js'
 import Slot from '../models/slot.model.js'
 import Booking from '../models/booking.model.js'
+import UserPlan from '../models/userPlan.model.js'
 import jwt from 'jsonwebtoken'
 import { sendVerificationLink, verifyEmailToken } from '../utils/emailServices.js'
 import { generateVerificationResponse, tokenExpiredResponse, submitPasswordForm } from '../templates/index.template.js'
@@ -688,12 +689,14 @@ const bookSlot = asyncHandler(async(req, res)=>{
 const viewBookedSlots = asyncHandler(async(req, res)=>{
     const userId = req.user?._id
     if(!userId){
+        logger.warn("Validation failed: UserId required");
         return res
             .status(400)
             .json(new ApiError(400, 'User Id cannot be empty.'))
     }
 
     if(!isValidObjectId(userId)){
+        logger.warn(`Validation failed: Invalid user-id[${userId}]`);
         return res
             .status(400)
             .json(new ApiError(400, 'Invalid user id.'))
@@ -734,11 +737,13 @@ const viewBookedSlots = asyncHandler(async(req, res)=>{
     ])
 
     if(!myBookings || !myBookings.length){
+        logger.warn(`No bookings found for user: ${req.user?.username}`);
         return res
             .status(404)
             .json(new ApiResponse(404, {}, 'No bookings yet.'))
     }
 
+    logger.info(`User ${req.user?.username} bookings retrieved successfully.`);
     return res
         .status(200)
         .json(new ApiResponse(200, myBookings, 'Bookings fetched.'))
@@ -747,31 +752,34 @@ const viewBookedSlots = asyncHandler(async(req, res)=>{
 const deleteBookedSlot = asyncHandler(async(req, res)=>{
     const { bookingId } = req.params
     if(!bookingId){
+        logger.warn("Validation failed: Booking ID is required.");
         return res
             .status(400)
             .json(new ApiError(400, 'Booking Id required.'))
     }
 
     if(!isValidObjectId(bookingId)){
+        logger.warn("Validation failed: Invalid booking id.");
         return res
             .status(400)
             .json(new ApiError(400, 'Invalid booking id.'))
     }
 
     const destroy = await Booking.findOneAndDelete({_id: bookingId, userId: req.user._id})
-    
     if(!destroy){
+        logger.warn(`MONGO_DB: No booking found with the given ID[${bookingId}].`);
         return res
             .status(404)
-            .json(new ApiError(404, 'Booking not found or access denied.'))
+            .json(new ApiError(404, 'Booking not found'))
     }
 
+    logger.info(`User ${req.user?.username} has cancelled their booking.`);
     return res
         .status(200)
         .json(new ApiResponse(200, {}, `Booking cancelled.`))
 })
 
-const getAvailableSlots = asyncHandler(async(req, res)=>{
+const getAvailableSlots = asyncHandler(async(_, res)=>{
     const availableSlots = await Slot.aggregate([
         {
             $lookup: {
@@ -794,11 +802,13 @@ const getAvailableSlots = asyncHandler(async(req, res)=>{
     ])
 
     if(!availableSlots || !availableSlots?.length){
+        logger.warn("No available slots found.");
         return res
             .status(404)
             .json(new ApiError(404, 'Slots not created yet.'))
     }
 
+    logger.info("Available slots retrieved successfully.");
     return res
         .status(200)
         .json(new ApiResponse(200, availableSlots, 'Available slots fetched successfully.'))
@@ -806,19 +816,80 @@ const getAvailableSlots = asyncHandler(async(req, res)=>{
 
 const keepAlive = asyncHandler(async(req, res) => {
     const SEQ_NUM = req.params?.sequenceId
-    console.log(`[${new Date().toISOString()}] Heart_Beat_REQ-[${SEQ_NUM}]: RECEIVED`)
+    logger.info(`[${new Date().toISOString()}] Heart_Beat_REQ-[${SEQ_NUM}]: RECEIVED`)
 
     if (!SEQ_NUM){
-        console.log(`[${new Date().toISOString()}] Heart_Beat_RES-[]: SENT OK`)
+        logger.info(`[${new Date().toISOString()}] Heart_Beat_RES-[]: SENT OK`)
         return res
             .status(400)
             .json(new ApiResponse(400, {status: 'OK'}, 'SEQ_NUM is missing-Server is up and running.'))
     }
 
-    console.log(`[${new Date().toISOString()}] Heart_Beat_RES-[${SEQ_NUM}]: SENT OK`)    
+    logger.info(`[${new Date().toISOString()}] Heart_Beat_RES-[${SEQ_NUM}]: SENT OK`)    
     return res
         .status(200)
         .json(new ApiResponse(200, { SEQ_NUM, status: 'OK' }, `Server is up and running.`))
+})
+
+const fetchUserSubscription = asyncHandler(async(req, res)=>{
+    const userId = req.user?._id
+    if ( !userId ){
+        logger.warn("Validation failed: User ID is required.");
+        return res
+            .status(400)
+            .json(new ApiError(400, "User Id required."))
+    }
+
+    if (!isValidObjectId(userId)){
+        logger.warn("Validation failed: Invalid User Id.");
+        return res
+            .status(404)
+            .json(new ApiError(404, 'Invalid user id.'))
+    }
+
+    const subscribedPlan = await UserPlan.aggregate([
+        {
+            $match: {
+                owner: userId
+            }
+        },
+        {
+            $lookup: {
+                from: 'subscriptionmodels',
+                localField: 'plan',
+                foreignField: 'title',
+                as: 'packageDetails'
+            }
+        },
+        {
+            $unwind: {
+                path: '$packageDetails',
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $project: {
+                plan: 1,
+                startsAt: 1,
+                expiresAt: 1,
+                'packageDetails.description': 1,
+                'packageDetails.features': 1,
+                'packageDetails.price': 1
+            }
+        }
+    ])
+
+    if (!subscribedPlan.length){
+        logger.info(`No subscribed plan found for the user: ${req.user?.username}.`);
+        return res
+            .status(204)
+            .json(new ApiResponse(204, {}, "No subscribed plan found for the user."))
+    }
+
+    logger.info(`Subscribed plan details retrieved successfully for user: ${req.user?.username}.`);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, subscribedPlan, 'Subscribed plan details retrieved successfully.'))
 })
 
 export {
@@ -842,4 +913,5 @@ export {
     deleteBookedSlot,
     getAvailableSlots,
     keepAlive,
+    fetchUserSubscription,
 }

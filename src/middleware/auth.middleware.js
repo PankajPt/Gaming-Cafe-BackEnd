@@ -41,6 +41,11 @@ const verifyJWT = asyncHandler(async (req, res, next) => {
             statusCode: error?.statusCode
         }
         logger.error("[JWT Verify]", errorData)
+        if ( error.name === "TokenExpiredError" ){
+            return res
+                .status(401)
+                .json(new ApiResponse(401, { forcedLogout: false }, error?.message || 'jwt expired'))
+        }
         return res
             .status(401)
             .json(new ApiResponse(401, { forcedLogout: true }, error?.message || `Invalid Access Token`))

@@ -44,8 +44,38 @@ const viewUsers = asyncHandler(async(req, res)=>{
         return;
     }
     
+    const users = await User.aggregate([
+        {
+            $match: {
+                role: {
+                    $ne: 'admin'
+                }
+            }
+        },
+        {
+            $lookup: {
+                from: 'userplans',
+                localField: '_id',
+                foreignField: 'owner',
+                as: 'activePlan'
+            }
+        },
+        {
+            $project: {
+                _id: 1,
+                username: 1,
+                fullname: 1,
+                email: 1,
+                role: 1,
+                isActiveUser: 1,
+                'activePlan.plan': 1,
+                'activePlan.startsAt': 1,
+                'activePlan.expiresAt': 1
+            }
+        }
+    ])
 
-    const users = await User.find({ role: {$ne: 'admin'}}).select('-password -permissions -createdAt -updatedAt -__v')
+    // const users = await User.find({ role: {$ne: 'admin'}}).select('-password -permissions -createdAt -updatedAt -__v')
     if (!users){
         logger.warn('No users found.');
         return res
@@ -670,7 +700,7 @@ const assignPlanToUser = asyncHandler(async(req, res)=>{
             {
                 owner: userId,
                 plan,
-                startDate: new Date(Date.now()),
+                startsAt: new Date(Date.now()),
             }
         )
         
@@ -691,7 +721,7 @@ const assignPlanToUser = asyncHandler(async(req, res)=>{
             {
                 owner: userId,
                 plan,
-                startDate: existingPlan[0]?.expiresAt,
+                startsAt: existingPlan[0]?.expiresAt,
             }
         )
         
