@@ -7,7 +7,7 @@ import {
     getEvents, getCatalogue, renewAccessAndRefreshToken, 
     getPlans, bookSlot, viewBookedSlots,
     deleteBookedSlot, getAvailableSlots, keepAlive,
-    updateEmailBeforeVerification, fetchUserSubscription } from '../controllers/user.controller.js'
+    updateEmailBeforeVerification, fetchUserSubscription, testFunction } from '../controllers/user.controller.js'
 import { uploadUserFile } from '../middleware/multer.middleware.js'
 import { verifyJWT } from '../middleware/auth.middleware.js'
 // import { upload } from '../middleware/multer.middleware.js'
@@ -26,6 +26,16 @@ userRouter.route('/refresh').get(renewAccessAndRefreshToken)
 userRouter.route('/subs-plans').get(getPlans)
 userRouter.route('/get-slots').get(getAvailableSlots)
 userRouter.route('/heartbeat/:sequenceId').get(keepAlive)
+userRouter.route('/test').post(uploadUserFile.fields([
+    {
+        name: 'file1',
+        maxCount: 5
+    },
+    {
+        name: 'file2',
+        maxCount: 5
+    }
+]), testFunction)
 
 
 // secure routes

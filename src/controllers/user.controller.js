@@ -892,6 +892,29 @@ const fetchUserSubscription = asyncHandler(async(req, res)=>{
         .json(new ApiResponse(200, subscribedPlan, 'Subscribed plan details retrieved successfully.'))
 })
 
+const testFunction = asyncHandler(async(req, res)=>{
+    const { file1 = [], file2 = [] } = req.files || {};
+    console.log(file1, file2)
+    if (!file1.length && !file2.length) {
+        return res
+            .status(400)
+            .json(new ApiError(400, 'Bin file required (file1, file2).'));
+    }
+
+    const uploadFiles = async(files) => {
+        for (const file of files){
+            uploadOnCloudinary(file?.path, 'auto')
+        }
+    }
+
+    await uploadFiles(file1)
+    await uploadFiles(file2)
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, 'OK'))
+})
+
 export {
     registerUser,
     loginUser,
@@ -914,4 +937,5 @@ export {
     getAvailableSlots,
     keepAlive,
     fetchUserSubscription,
+    testFunction
 }
