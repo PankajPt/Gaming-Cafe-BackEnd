@@ -28,17 +28,43 @@ pingServer() {
         STATUS="FAILED"
     fi
 
-    # Print status with color
+    R_TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
     if [[ "$STATUS" == "OK" ]]; then
-		R_TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
         echo -e "[\e[34m$R_TIMESTAMP\e[0m] Heart_Beat[\e[36m$SEQUENCE_NUMBER\e[0m]: \e[32mSTATUS: OK\e[0m"
     else
-		R_TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
         echo -e "[\e[34m$R_TIMESTAMP\e[0m] Heart_Beat[\e[36m$SEQUENCE_NUMBER\e[0m]: \e[31mSTATUS: FAILED\e[0m"
     fi
 }
 
+progress_bar() {
+    local total=$1
+    local interval=1
+    local elapsed=0
+    local width=30
+
+    # Hide the cursor
+    tput civis
+
+    while [ $elapsed -le $total ]; do
+        percent=$(( (elapsed * 100) / total ))
+        filled=$(( (elapsed * width) / total ))
+        unfilled=$(( width - filled ))
+
+        bar="\e[42m$(printf ' %.0s' $(seq 1 $filled))\e[0m$(printf ' %.0s' $(seq 1 $unfilled))"
+        printf "\r[\e[1;32m%3d%%\e[0m] $bar" "$percent"
+
+        sleep $interval
+        ((elapsed+=interval))
+    done
+
+    # Clear line and restore cursor
+    echo -ne "\r\033[K"
+    tput cnorm
+}
+
+
+# Main Loop
 while true; do
     pingServer
-    sleep 600
+    progress_bar 600
 done
