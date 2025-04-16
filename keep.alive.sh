@@ -33,6 +33,7 @@ pingServer() {
         echo -e "[\e[34m$R_TIMESTAMP\e[0m] Heart_Beat[\e[36m$SEQUENCE_NUMBER\e[0m]: \e[32mSTATUS: OK\e[0m"
     else
         echo -e "[\e[34m$R_TIMESTAMP\e[0m] Heart_Beat[\e[36m$SEQUENCE_NUMBER\e[0m]: \e[31mSTATUS: FAILED\e[0m"
+        echo -ne "\a"
     fi
 }
 
@@ -42,25 +43,41 @@ progress_bar() {
     local elapsed=0
     local width=30
 
-    # Hide the cursor
-    tput civis
+    tput civis 2>/dev/null  # Hide cursor
 
-    while [ $elapsed -le $total ]; do
-        percent=$(( (elapsed * 100) / total ))
-        filled=$(( (elapsed * width) / total ))
-        unfilled=$(( width - filled ))
+    while [ $elapsed -lt $total ]; do
+        local remaining=$((total - elapsed))
+        local minutes=$(printf "%02d" $((remaining / 60)))
+        local seconds=$(printf "%02d" $((remaining % 60)))
 
-        bar="\e[42m$(printf ' %.0s' $(seq 1 $filled))\e[0m$(printf ' %.0s' $(seq 1 $unfilled))"
-        printf "\r[\e[1;32m%3d%%\e[0m] $bar" "$percent"
+        local filled=$(( (elapsed * width) / total ))
+        local blinking_index=$((filled + 1))
+        local bar=""
 
+        for ((i = 1; i <= width; i++)); do
+            if [[ $i -le $filled ]]; then
+                bar+="\e[42m \e[0m"
+            elif [[ $i -eq $blinking_index ]]; then
+                if ((elapsed % 2 == 0)); then
+                    bar+="\e[102m \e[0m"
+                else
+                    bar+=" "
+                fi
+            else
+                bar+=" "
+            fi
+        done
+
+        echo -ne "\rNext heartbeat in \e[1;33m${minutes}:${seconds}\e[0m ${bar}"
         sleep $interval
-        ((elapsed+=interval))
+        ((elapsed += interval))
     done
 
-    # Clear line and restore cursor
     echo -ne "\r\033[K"
-    tput cnorm
+    tput cnorm 2>/dev/null
 }
+
+
 
 
 # Main Loop
