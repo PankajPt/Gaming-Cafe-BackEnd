@@ -1,10 +1,13 @@
 #!/bin/bash
 
-BACKEND_URI="https://madgearapi.onrender.com/api/v1/users/heartbeat/"
+BACKEND_URI=(
+    "https://madgearapi.onrender.com/api/v1/users/heartbeat/"
+    "https://secure-android.onrender.com/api/v1/users/heartbeat/"
+)
 
 generate_sequence_number() {
     local len=$1
-    local alphaNum="0123456789ABCDEFGHJKLMNOPQRSTUVWXYZ"
+    local alphaNum="0123456789ABCDEFGHJKLMNOPQRSTUVWXYZ-"
     local sequenceNumber=""
 
     for ((i = 0; i < len; i++)); do
@@ -15,26 +18,37 @@ generate_sequence_number() {
     echo "$sequenceNumber"
 }
 
-pingServer() {
-    SEQUENCE_NUMBER=$(generate_sequence_number 8)
-    TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+ping_single_server() {
+    local url=$1
+    local label=$2
+    local seq=$3
 
-    echo -e "[\e[34m$TIMESTAMP\e[0m] Heart_Beat[\e[36m$SEQUENCE_NUMBER\e[0m]: SENT"
+    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    echo -e "[\e[34m$timestamp\e[0m] Heart_Beat[\e[36m$seq\e[0m] to \e[35m$label\e[0m: SENT"
 
-    RESPONSE=$(curl -s -X GET "${BACKEND_URI}${SEQUENCE_NUMBER}")
-    STATUS=$(echo "$RESPONSE" | grep -o '"status":"[^"]*' | cut -d'"' -f4)
+    local response=$(curl -s -X GET "${url}${seq}")
+    local status=$(echo "$response" | grep -o '"status":"[^"]*' | cut -d'"' -f4)
 
-    if [[ -z "$STATUS" ]]; then
-        STATUS="FAILED"
-    fi
+    [[ -z "$status" ]] && status="FAILED"
+    local r_timestamp=$(date +"%Y-%m-%d %H:%M:%S")
 
-    R_TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
-    if [[ "$STATUS" == "OK" ]]; then
-        echo -e "[\e[34m$R_TIMESTAMP\e[0m] Heart_Beat[\e[36m$SEQUENCE_NUMBER\e[0m]: \e[32mSTATUS: OK\e[0m"
+    if [[ "$status" == "OK" ]]; then
+        echo -e "[\e[34m$r_timestamp\e[0m] Heart_Beat[\e[36m$seq\e[0m] to \e[35m$label\e[0m: \e[32mSTATUS: OK\e[0m"
     else
-        echo -e "[\e[34m$R_TIMESTAMP\e[0m] Heart_Beat[\e[36m$SEQUENCE_NUMBER\e[0m]: \e[31mSTATUS: FAILED\e[0m"
+        echo -e "[\e[34m$r_timestamp\e[0m] Heart_Beat[\e[36m$seq\e[0m] to \e[35m$label\e[0m: \e[31mSTATUS: FAILED\e[0m"
         echo -ne "\a"
     fi
+}
+
+pingServer() {
+    SEQUENCE_NUMBER=$(generate_sequence_number 8)
+
+    for i in "${!BACKEND_URI[@]}"; do
+        label="Service $((i + 1))"
+        ping_single_server "${BACKEND_URI[$i]}" "$label" "$SEQUENCE_NUMBER" &
+    done
+
+    wait  # Wait for all background jobs to finish
 }
 
 progress_bar() {
@@ -43,7 +57,7 @@ progress_bar() {
     local elapsed=0
     local width=30
 
-    tput civis 2>/dev/null  # Hide cursor
+    tput civis 2>/dev/null
 
     while [ $elapsed -lt $total ]; do
         local remaining=$((total - elapsed))
@@ -76,9 +90,6 @@ progress_bar() {
     echo -ne "\r\033[K"
     tput cnorm 2>/dev/null
 }
-
-
-
 
 # Main Loop
 while true; do
